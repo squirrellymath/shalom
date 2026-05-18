@@ -1,27 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Shalom</title>
-    <meta name="description" content="Shalom — built on Replit. Update this description to reflect the app." />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Shalom" />
-    <meta property="og:description" content="Shalom — built on Replit. Update this description to reflect the app." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Shalom" />
-    <meta name="twitter:description" content="Shalom — built on Replit. Update this description to reflect the app." />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="alternate icon" href="/favicon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-BD39Sk8M.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-uiQ7W3zl.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Shalom</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0a0a;color:#e0e0e0;font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;}
+h1{font-size:3rem;font-weight:700;color:#c9a84c;letter-spacing:4px;margin-bottom:16px;text-align:center;}
+p{color:#888;font-size:1.1rem;max-width:520px;text-align:center;line-height:1.8;margin-bottom:12px;}
+.tagline{color:#c9a84c;font-style:italic;margin-bottom:32px;}
+form{display:flex;gap:10px;margin-bottom:48px;flex-wrap:wrap;justify-content:center;}
+input{background:#111;border:1px solid #333;color:#e0e0e0;padding:12px 20px;border-radius:4px;font-size:1rem;width:280px;}
+button{background:#c9a84c;color:#080808;border:none;padding:12px 24px;font-weight:700;cursor:pointer;border-radius:4px;font-size:1rem;}
+.links{display:flex;gap:24px;}
+.links a{color:#444;font-size:0.85rem;text-decoration:none;}
+footer{color:#333;font-size:0.8rem;margin-top:16px;}
+</style>
+</head>
+<body>
+<h1>ש Shalom</h1>
+<p class="tagline">A space for conversations that matter. Facilitated by Bridget. Permanent by design.</p>
+<p>Some conversations deserve a witness. Shalom is a private space where two people can talk — mediated by Bridget, timestamped, and permanently recorded. Nothing altered. Nothing lost. A record that belongs to both of you, forever.</p>
+<form onsubmit="event.preventDefault();this.innerHTML='<p style=color:#c9a84c;font-style:italic>You\'re on the list.</p>'">
+  <input type="email" placeholder="name@example.com" required/>
+  <button type="submit">Submit</button>
+</form>
+<div class="links">
+  <a href="https://bloodlessrevolution.com">bloodlessrevolution.com</a>
+  <a href="https://bridget.fyi">bridget.fyi</a>
+  <a href="https://verdicts.ai">verdicts.ai</a>
+</div>
+<footer>© 2026 Bloodless Revolution LLC</footer>
+</body>
 </html>
