@@ -1,0 +1,7 @@
+{
+  "name": "shalom",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx serve dist/public -l $PORT"
+  }
+}

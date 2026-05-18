@@ -32,9 +32,17 @@ function Home() {
           A space for conversations that matter. Facilitated by Bridget. Permanent by design.
         </p>
 
-        <p className="font-sans text-base sm:text-lg text-primary/80 leading-loose mb-16 sm:mb-24 max-w-lg font-light">
+        <p className="font-sans text-base sm:text-lg text-primary/80 leading-loose mb-12 sm:mb-16 max-w-lg font-light">
           Some conversations deserve a witness. Shalom is a private space where two people can talk — mediated by Bridget, timestamped, and permanently recorded. Nothing altered. Nothing lost. A record that belongs to both of you, forever.
         </p>
+
+        <a
+          href="https://bridget.fyi/auth/sso/init?return_to=https://shalom.fyi/auth/sso/callback"
+          data-testid="link-sign-in"
+          className="font-serif italic text-base sm:text-lg text-primary/70 hover:text-primary transition-colors duration-300 mb-12 sm:mb-16 tracking-wide"
+        >
+          Sign in with Bridget →
+        </a>
 
         <div className="w-full max-w-sm mb-16">
           {!submitted ? (
