@@ -25,7 +25,7 @@ function Home() {
       <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center mt-12 sm:mt-24 mb-16 sm:mb-32 flex-1 justify-center">
         
         <h1 className="font-serif text-5xl sm:text-7xl tracking-wide font-medium text-primary mb-6 drop-shadow-sm">
-          Shalom
+          ש&nbsp;Shalom
         </h1>
         
         <p className="font-serif text-xl sm:text-2xl italic text-primary/90 mb-12 sm:mb-16 leading-relaxed max-w-md">
