@@ -15,7 +15,7 @@ COPY lib/api-zod/ ./lib/api-zod/
 COPY artifacts/api-server/ ./artifacts/api-server/
 
 # Install dependencies and build
-RUN pnpm install --frozen-lockfile
+RUN npm_config_user_agent="pnpm/" pnpm install --frozen-lockfile
 RUN cd artifacts/api-server && node build.mjs
 
 # === Runtime stage ===
