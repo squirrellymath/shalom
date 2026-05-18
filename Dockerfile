@@ -1,8 +1,11 @@
 FROM node:22-alpine
+
 WORKDIR /app
-COPY artifacts/api-server/dist ./api-server/dist
-COPY artifacts/api-server/package.json ./api-server/package.json
-COPY artifacts/shalom/dist/public ./public
-RUN cd api-server && npm install --production
+
+COPY artifacts/shalom/dist/public/ /app/artifacts/shalom/dist/public/
+
+RUN npm install -g serve
+
 EXPOSE 8080
-CMD ["node", "api-server/dist/index.mjs"]
+
+CMD ["npx", "serve", "/app/artifacts/shalom/dist/public", "-l", "8080"]
