@@ -22,6 +22,23 @@
     <link rel="stylesheet" crossorigin href="/assets/index-BYlUT0O_.css">
   </head>
   <body>
+    <div id="auth-bar" style="position:fixed;top:0;right:0;z-index:9999;padding:8px 16px;font-family:sans-serif;font-size:13px;color:#888;"></div>
     <div id="root"></div>
+    <script>
+      (async () => {
+        const bar = document.getElementById('auth-bar');
+        try {
+          const res = await fetch('https://bridget.fyi/auth/me', { credentials: 'include' });
+          if (res.ok) {
+            const data = await res.json();
+            bar.textContent = data.email ?? '';
+          } else {
+            bar.innerHTML = '<a href="https://bridget.fyi" style="color:#888;text-decoration:none;">Sign in</a>';
+          }
+        } catch {
+          bar.innerHTML = '<a href="https://bridget.fyi" style="color:#888;text-decoration:none;">Sign in</a>';
+        }
+      })();
+    </script>
   </body>
 </html>
