@@ -4,6 +4,6 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --legacy-peer-deps || true
 COPY . .
-RUN npx esbuild src/index.ts --bundle --platform=node --outfile=dist/index.mjs --format=esm --packages=external
+RUN npx esbuild src/index.ts --bundle --platform=node --outfile=dist/index.mjs --format=esm
 EXPOSE 8080
 CMD ["node", "dist/index.mjs"]
