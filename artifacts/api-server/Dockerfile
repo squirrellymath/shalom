@@ -2,7 +2,7 @@ FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./
 COPY package-lock.json* ./
-RUN npm install --ignore-scripts 2>/dev/null || true
+RUN npm install
 COPY . .
 RUN npm run build
 EXPOSE 8080
