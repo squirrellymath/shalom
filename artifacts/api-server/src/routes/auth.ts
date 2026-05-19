@@ -3,38 +3,24 @@ import { Router } from "express";
 const router = Router();
 
 router.get("/auth/sso/callback", async (req, res) => {
-  const { sso_token } = req.query;
-
-  if (!sso_token || typeof sso_token !== "string") {
-    res.status(400).send("Missing sso_token");
-    return;
-  }
-
+  const token = typeof req.query.sso_token === "string" ? req.query.sso_token :
+    typeof req.query.token === "string" ? req.query.token : null;
+  if (!token) return res.redirect("/?auth_error=missing_token");
   try {
-    const verifyUrl = `https://bridget.fyi/auth/sso/verify?token=${encodeURIComponent(sso_token)}`;
-    const response = await fetch(verifyUrl, {
-      headers: {
-        Authorization: `Bearer ${process.env["SSO_SECRET"] ?? ""}`,
-      },
-    });
-
-    if (!response.ok) {
-      req.log.warn({ status: response.status }, "SSO verification rejected");
-      res.status(401).send("SSO verification failed");
-      return;
-    }
-
-    const user = (await response.json()) as {
-      email: string;
-      role: string;
-      [key: string]: unknown;
-    };
-
-    req.session.user = user;
-    res.redirect("/");
+    const response = await fetch(
+      `https://bridget.fyi/auth/sso/verify?token=${encodeURIComponent(token)}`,
+      {
+        method: "GET",
+        headers: { Origin: "https://shalom.fyi" },
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!response.ok) return res.redirect("/?auth_error=verify_failed");
+    const data = await response.json() as { user_id: string; email: string; role: string };
+    req.session.user = { user_id: data.user_id, email: data.email, role: data.role };
+    req.session.save(() => res.redirect("/"));
   } catch (err) {
-    req.log.error({ err }, "SSO callback error");
-    res.status(500).send("SSO verification error");
+    res.redirect("/?auth_error=verify_failed");
   }
 });
 
