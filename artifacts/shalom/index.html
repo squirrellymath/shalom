@@ -32,10 +32,10 @@
             const data = await res.json();
             bar.textContent = data.email ?? '';
           } else {
-            bar.innerHTML = '<a href="https://bridget.fyi" style="color:#888;text-decoration:none;">Sign in</a>';
+            bar.innerHTML = '<a href="https://bridget.fyi/auth/sso/init?return_to=' + encodeURIComponent('https://shalom.fyi/auth/sso/callback') + '" style="color:#888;text-decoration:none;">Sign in with Bridget \u2192</a>';
           }
         } catch {
-          bar.innerHTML = '<a href="https://bridget.fyi" style="color:#888;text-decoration:none;">Sign in</a>';
+          bar.innerHTML = '<a href="https://bridget.fyi/auth/sso/init?return_to=' + encodeURIComponent('https://shalom.fyi/auth/sso/callback') + '" style="color:#888;text-decoration:none;">Sign in with Bridget \u2192</a>';
         }
       })();
     </script>
