@@ -42,6 +42,6 @@ app.use("/", router);
 
 const STATIC_DIR = process.env.STATIC_DIR || "/app/artifacts/shalom/dist/public";
 app.use(express.static(STATIC_DIR));
-app.get("*", (_req, res) => res.sendFile(path.join(STATIC_DIR, "index.html")));
+app.use((_req, res) => res.sendFile(path.join(STATIC_DIR, "index.html")));
 
 export default app;

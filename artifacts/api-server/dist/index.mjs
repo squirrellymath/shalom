@@ -33821,7 +33821,7 @@ app.use((0, import_express_session.default)({
 app.use("/", routes_default);
 var STATIC_DIR = process.env.STATIC_DIR || "/app/artifacts/shalom/dist/public";
 app.use(import_express4.default.static(STATIC_DIR));
-app.get("*", (_req, res) => res.sendFile(path.join(STATIC_DIR, "index.html")));
+app.use((_req, res) => res.sendFile(path.join(STATIC_DIR, "index.html")));
 var app_default = app;
 
 // src/index.ts
