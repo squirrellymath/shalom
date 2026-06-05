@@ -142,7 +142,25 @@ function ConvoView({ convo, onBack, addMsg }: {
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const invite = async () => {
+    setInviteError(false);
+    setInviteUrl(null);
+    try {
+      const res = await fetch(`/conversations/${convo.id}/invite`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) { setInviteError(true); return; }
+      const data = await res.json();
+      setInviteUrl(data.inviteUrl);
+    } catch {
+      setInviteError(true);
+    }
+  };
   const messages = convo.messages || [];
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
@@ -164,10 +182,32 @@ function ConvoView({ convo, onBack, addMsg }: {
           <div className="font-medium leading-none truncate">{convo.partnerName}</div>
           <div className="text-xs text-stone-400 mt-0.5">{convo.topic || "facilitated by Bridget"}</div>
         </div>
-        <div className="ml-auto flex items-center gap-1 text-xs text-stone-400">
-          <ShieldCheck size={13} className="text-emerald-500" />{messages.length} on record
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={invite}
+            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+            Invite
+          </button>
+          <span className="flex items-center gap-1 text-xs text-stone-400">
+            <ShieldCheck size={13} className="text-emerald-500" />{messages.length} on record
+          </span>
         </div>
       </div>
+      {(inviteUrl || inviteError) && (
+        <div className="bg-stone-50 border-b border-stone-200 px-4 py-2.5 flex items-center gap-2">
+          {inviteUrl ? (
+            <>
+              <input readOnly value={inviteUrl}
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-stone-200 bg-white text-stone-700 focus:outline-none min-w-0" />
+              <button onClick={() => navigator.clipboard.writeText(inviteUrl)}
+                className="shrink-0 text-xs px-3 py-2 rounded-lg bg-stone-900 text-white hover:bg-stone-800 transition">
+                Copy
+              </button>
+            </>
+          ) : (
+            <p className="text-xs text-red-500">Couldn't create invite.</p>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl w-full mx-auto">
         {messages.length === 0 && (
           <div className="text-center text-stone-400 text-sm py-8">Loading messages…</div>
