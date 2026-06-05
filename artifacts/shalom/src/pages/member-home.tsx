@@ -47,15 +47,18 @@ export default function MemberHome({ email }: { email?: string }) {
 
   const addMsg = async (id: string, text: string): Promise<Message | null> => {
     try {
-      const msg = await apiFetch(`/conversations/${id}/messages`, {
+      const { message, bridgetMessage } = await apiFetch(`/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-      setConversations((p) => p.map((c) => c.id === id
-        ? { ...c, messages: [...(c.messages || []), msg], updatedAt: new Date().toISOString() }
-        : c));
-      return msg;
+      setConversations((p) => p.map((c) => {
+        if (c.id !== id) return c;
+        const appended = [...(c.messages || []), message];
+        if (bridgetMessage) appended.push(bridgetMessage);
+        return { ...c, messages: appended, updatedAt: new Date().toISOString() };
+      }));
+      return message;
     } catch { return null; }
   };
 

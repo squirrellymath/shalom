@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, conversationsTable, messagesTable } from "@workspace/db";
 import { z } from "zod";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 const router: IRouter = Router();
 
@@ -122,7 +123,52 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
     .set({ updatedAt: new Date() })
     .where(eq(conversationsTable.id, id));
 
-  res.status(201).json(message);
+  let bridgetMessage = undefined;
+
+  if (convo.mode === "mediated") {
+    try {
+      const recent = await db
+        .select()
+        .from(messagesTable)
+        .where(eq(messagesTable.conversationId, id))
+        .orderBy(desc(messagesTable.createdAt))
+        .limit(15);
+
+      const transcript = recent
+        .reverse()
+        .map((m) => `${m.sender === "bridget" ? "Bridget" : m.sender}: ${m.text}`)
+        .join("\n");
+
+      const aiRes = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 8192,
+        system:
+          'You are Bridget, a calm, fair mediator facilitating a witnessed conversation between two people. The record is permanent and belongs to both. Do NOT respond to every message — stay silent unless your voice genuinely helps: when addressed, when things escalate, when someone is stuck, or to mark real progress. When you speak: brief (1-3 sentences), even-handed, never take sides. Respond ONLY with JSON, no markdown: {"speak": boolean, "text": string}. If speak is false, text is "".',
+        messages: [
+          {
+            role: "user",
+            content: `Here is the conversation transcript so far:\n\n${transcript}\n\nShould you speak now?`,
+          },
+        ],
+      });
+
+      const block = aiRes.content[0];
+      if (block.type === "text") {
+        const parsed = JSON.parse(block.text) as { speak: boolean; text: string };
+        if (parsed.speak && parsed.text.trim()) {
+          const [bMsg] = await db
+            .insert(messagesTable)
+            .values({ conversationId: id, sender: "bridget", text: parsed.text.trim() })
+            .returning();
+          bridgetMessage = bMsg;
+        }
+      }
+    } catch {
+      // Bridget failure never blocks the user's message
+    }
+  }
+
+  res.status(201).json({ message, bridgetMessage });
 });
 
 export default router;
