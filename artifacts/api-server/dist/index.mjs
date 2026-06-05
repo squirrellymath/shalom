@@ -62572,7 +62572,7 @@ var conversations_default = router4;
 // src/routes/invite.ts
 var import_express5 = __toESM(require_express2(), 1);
 var router5 = (0, import_express5.Router)();
-var SSO_INIT_URL = "https://bridget.fyi/auth/sso?origin=https://shalom.fyi";
+var SSO_INIT_URL = "https://bridget.fyi/auth/sso/init?return_to=" + encodeURIComponent("https://shalom.fyi/auth/sso/callback");
 router5.get("/invite/:token", async (req, res) => {
   const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
   const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, token));

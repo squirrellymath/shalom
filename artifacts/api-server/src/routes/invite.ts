@@ -4,7 +4,8 @@ import { db, invitesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
-const SSO_INIT_URL = "https://bridget.fyi/auth/sso?origin=https://shalom.fyi";
+const SSO_INIT_URL = "https://bridget.fyi/auth/sso/init?return_to=" +
+  encodeURIComponent("https://shalom.fyi/auth/sso/callback");
 
 router.get("/invite/:token", async (req, res): Promise<void> => {
   const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
