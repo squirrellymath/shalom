@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import MemberHome from "@/pages/member-home";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -90,9 +91,22 @@ function Home() {
 }
 
 function Router() {
+  const [auth, setAuth] = useState<{ authenticated: boolean; email?: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/member/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then(setAuth)
+      .catch(() => setAuth({ authenticated: false }));
+  }, []);
+
+  if (!auth) return null;
+
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/">
+        {auth.authenticated ? <MemberHome email={auth.email} /> : <Home />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
