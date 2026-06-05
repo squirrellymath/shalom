@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 export const conversationsTable = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerUserId: text("owner_user_id").notNull(),
+  partnerUserId: text("partner_user_id"),
   partnerName: text("partner_name").notNull(),
   partnerEmail: text("partner_email"),
   topic: text("topic"),

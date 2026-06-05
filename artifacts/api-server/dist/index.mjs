@@ -57436,6 +57436,7 @@ var createInsertSchema = (entity, refine2) => {
 var conversationsTable = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerUserId: text("owner_user_id").notNull(),
+  partnerUserId: text("partner_user_id"),
   partnerName: text("partner_name").notNull(),
   partnerEmail: text("partner_email"),
   topic: text("topic"),
@@ -62423,7 +62424,7 @@ function requireAuth(req, res) {
 router4.get("/conversations", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-  const rows = await db.select().from(conversationsTable).where(eq(conversationsTable.ownerUserId, userId)).orderBy(conversationsTable.updatedAt);
+  const rows = await db.select().from(conversationsTable).where(or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))).orderBy(conversationsTable.updatedAt);
   res.json(rows.reverse());
 });
 router4.post("/conversations", async (req, res) => {
@@ -62444,7 +62445,7 @@ router4.get("/conversations/:id/messages", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
     return;
@@ -62456,7 +62457,7 @@ router4.get("/conversations/:id/messages/verify", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
     return;
@@ -62468,7 +62469,7 @@ router4.post("/conversations/:id/messages", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
     return;

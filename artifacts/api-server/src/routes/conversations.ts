@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { db, conversationsTable, messagesTable } from "@workspace/db";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
@@ -34,7 +34,7 @@ router.get("/conversations", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(conversationsTable)
-    .where(eq(conversationsTable.ownerUserId, userId))
+    .where(or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId)))
     .orderBy(conversationsTable.updatedAt);
 
   res.json(rows.reverse());
@@ -72,7 +72,7 @@ router.get("/conversations/:id/messages", async (req, res): Promise<void> => {
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+    .where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -97,7 +97,7 @@ router.get("/conversations/:id/messages/verify", async (req, res): Promise<void>
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+    .where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -117,7 +117,7 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+    .where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
