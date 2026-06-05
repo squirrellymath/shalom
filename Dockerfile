@@ -1,11 +1,7 @@
-FROM node:22-alpine
-
+FROM node:20-alpine
 WORKDIR /app
-
-COPY artifacts/shalom/dist/public/ /app/artifacts/shalom/dist/public/
-
-RUN npm install -g serve
-
-EXPOSE 8080
-
-CMD ["npx", "serve", "/app/artifacts/shalom/dist/public", "-l", "8080"]
+COPY artifacts/api-server/dist /app/artifacts/api-server/dist
+COPY artifacts/shalom/dist/public /app/artifacts/shalom/dist/public
+ENV STATIC_DIR=/app/artifacts/shalom/dist/public
+ENV NODE_ENV=production
+CMD ["node", "/app/artifacts/api-server/dist/index.mjs"]

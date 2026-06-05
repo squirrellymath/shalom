@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -37,5 +38,9 @@ app.use(session({
 }));
 
 app.use("/", router);
+
+const STATIC_DIR = process.env.STATIC_DIR || "/app/artifacts/shalom/dist/public";
+app.use(express.static(STATIC_DIR));
+app.get("*", (_req, res) => res.sendFile(path.join(STATIC_DIR, "index.html")));
 
 export default app;
