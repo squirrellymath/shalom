@@ -7,5 +7,6 @@ declare module "express-session" {
       email: string;
       role: string;
     };
+    pendingInvite?: string;
   }
 }

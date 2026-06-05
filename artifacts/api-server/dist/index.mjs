@@ -18768,14 +18768,14 @@ var require_etag = __commonJS({
   "../../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash = crypto2.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash = crypto3.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash + '"';
     }
@@ -20498,27 +20498,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router6;
+    module.exports = Router7;
     module.exports.Route = Route;
-    function Router6(options) {
-      if (!(this instanceof Router6)) {
-        return new Router6(options);
+    function Router7(options) {
+      if (!(this instanceof Router7)) {
+        return new Router7(options);
       }
       const opts = options || {};
-      function router6(req, res, next) {
-        router6.handle(req, res, next);
+      function router7(req, res, next) {
+        router7.handle(req, res, next);
       }
-      Object.setPrototypeOf(router6, this);
-      router6.caseSensitive = opts.caseSensitive;
-      router6.mergeParams = opts.mergeParams;
-      router6.params = {};
-      router6.strict = opts.strict;
-      router6.stack = [];
-      return router6;
+      Object.setPrototypeOf(router7, this);
+      router7.caseSensitive = opts.caseSensitive;
+      router7.mergeParams = opts.mergeParams;
+      router7.params = {};
+      router7.strict = opts.strict;
+      router7.stack = [];
+      return router7;
     }
-    Router6.prototype = function() {
+    Router7.prototype = function() {
     };
-    Router6.prototype.param = function param(name, fn) {
+    Router7.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20538,7 +20538,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router6.prototype.handle = function handle(req, res, callback) {
+    Router7.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20665,7 +20665,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router6.prototype.use = function use(handler) {
+    Router7.prototype.use = function use(handler) {
       let offset = 0;
       let path3 = "/";
       if (typeof handler !== "function") {
@@ -20698,7 +20698,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router6.prototype.route = function route(path3) {
+    Router7.prototype.route = function route(path3) {
       const route2 = new Route(path3);
       const layer = new Layer(path3, {
         sensitive: this.caseSensitive,
@@ -20713,7 +20713,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router6.prototype[method] = function(path3) {
+      Router7.prototype[method] = function(path3) {
         const route = this.route(path3);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -20896,13 +20896,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router6 = require_router();
+    var Router7 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router6 = null;
+      var router7 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -20911,13 +20911,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router6 === null) {
-            router6 = new Router6({
+          if (router7 === null) {
+            router7 = new Router7({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router6;
+          return router7;
         }
       });
     };
@@ -20988,15 +20988,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router6 = this.router;
+      var router7 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router6.use(path3, fn2);
+          return router7.use(path3, fn2);
         }
         debug(".use app under %s", path3);
         fn2.mountpath = path3;
         fn2.parent = this;
-        router6.use(path3, function mounted_app(req, res, next) {
+        router7.use(path3, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -22250,17 +22250,17 @@ var require_content_disposition = __commonJS({
 // ../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js"(exports) {
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input, secret) {
       if ("string" != typeof input) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input.slice(0, input.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input);
-      return expectedBuffer.length === inputBuffer.length && crypto2.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto3.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -23569,7 +23569,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router6 = require_router();
+    var Router7 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23591,8 +23591,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router6.Route;
-    exports.Router = Router6;
+    exports.Route = Router7.Route;
+    exports.Router = Router7;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -29033,11 +29033,11 @@ var require_on_headers = __commonJS({
 // ../../node_modules/.pnpm/cookie-signature@1.0.7/node_modules/cookie-signature/index.js
 var require_cookie_signature2 = __commonJS({
   "../../node_modules/.pnpm/cookie-signature@1.0.7/node_modules/cookie-signature/index.js"(exports) {
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -29046,7 +29046,7 @@ var require_cookie_signature2 = __commonJS({
       return sha1(mac) == sha1(val) ? str : false;
     };
     function sha1(str) {
-      return crypto2.createHash("sha1").update(str).digest("hex");
+      return crypto3.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -29055,8 +29055,8 @@ var require_cookie_signature2 = __commonJS({
 var require_random_bytes = __commonJS({
   "../../node_modules/.pnpm/random-bytes@1.0.0/node_modules/random-bytes/index.js"(exports, module) {
     "use strict";
-    var crypto2 = __require("crypto");
-    var generateAttempts = crypto2.randomBytes === crypto2.pseudoRandomBytes ? 1 : 3;
+    var crypto3 = __require("crypto");
+    var generateAttempts = crypto3.randomBytes === crypto3.pseudoRandomBytes ? 1 : 3;
     module.exports = randomBytes;
     module.exports.sync = randomBytesSync;
     function randomBytes(size, callback) {
@@ -29080,7 +29080,7 @@ var require_random_bytes = __commonJS({
       var err = null;
       for (var i = 0; i < generateAttempts; i++) {
         try {
-          return crypto2.randomBytes(size);
+          return crypto3.randomBytes(size);
         } catch (e) {
           err = e;
         }
@@ -29088,7 +29088,7 @@ var require_random_bytes = __commonJS({
       throw err;
     }
     function generateRandomBytes(size, attempts, callback) {
-      crypto2.randomBytes(size, function onRandomBytes(err, buf) {
+      crypto3.randomBytes(size, function onRandomBytes(err, buf) {
         if (!err) return callback(null, buf);
         if (!--attempts) return callback(err);
         setTimeout(generateRandomBytes.bind(null, size, attempts, callback), 10);
@@ -29430,7 +29430,7 @@ var require_express_session = __commonJS({
     "use strict";
     var Buffer2 = require_safe_buffer().Buffer;
     var cookie = require_cookie();
-    var crypto2 = __require("crypto");
+    var crypto3 = __require("crypto");
     var debug = require_src2()("express-session");
     var deprecate = require_depd()("express-session");
     var onHeaders = require_on_headers();
@@ -29803,7 +29803,7 @@ var require_express_session = __commonJS({
         }
         return val;
       });
-      return crypto2.createHash("sha1").update(str, "utf8").digest("hex");
+      return crypto3.createHash("sha1").update(str, "utf8").digest("hex");
     }
     function issecure(req, trustProxy) {
       if (req.connection && req.connection.encrypted) {
@@ -31216,7 +31216,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "../../node_modules/.pnpm/pg@8.20.0/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
-    var crypto2 = require_utils5();
+    var crypto3 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function startSession(mechanisms, stream) {
       const candidates = ["SCRAM-SHA-256"];
@@ -31228,7 +31228,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto2.randomBytes(18).toString("base64");
+      const clientNonce = crypto3.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
       return {
         mechanism,
@@ -31263,20 +31263,20 @@ var require_sasl = __commonJS({
         const peerCert = stream.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto2.hashByName(hashName, peerCert);
+        const certHash = await crypto3.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto2.deriveKey(password, saltBytes, sv.iteration);
-      const clientKey = await crypto2.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto2.sha256(clientKey);
-      const clientSignature = await crypto2.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto3.deriveKey(password, saltBytes, sv.iteration);
+      const clientKey = await crypto3.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto3.sha256(clientKey);
+      const clientSignature = await crypto3.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto2.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto2.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto3.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto3.hmacSha256(serverKey, authMessage);
       session2.message = "SASLResponse";
       session2.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session2.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -33444,7 +33444,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults2 = require_defaults();
     var Connection2 = require_connection();
-    var crypto2 = require_utils5();
+    var crypto3 = require_utils5();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -33679,7 +33679,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto2.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto3.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -34945,14 +34945,14 @@ var require_lib5 = __commonJS({
 });
 
 // src/app.ts
-var import_express6 = __toESM(require_express2(), 1);
+var import_express7 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 var import_express_session = __toESM(require_express_session(), 1);
 import path2 from "path";
 
 // src/routes/index.ts
-var import_express5 = __toESM(require_express2(), 1);
+var import_express6 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -39013,53 +39013,6 @@ var health_default = router;
 
 // src/routes/auth.ts
 var import_express2 = __toESM(require_express2(), 1);
-var router2 = (0, import_express2.Router)();
-router2.get("/auth/sso/callback", async (req, res) => {
-  const token = typeof req.query.sso_token === "string" ? req.query.sso_token : typeof req.query.token === "string" ? req.query.token : null;
-  if (!token) return res.redirect("/?auth_error=missing_token");
-  try {
-    const response = await fetch(
-      `https://bridget.fyi/auth/sso/verify?token=${encodeURIComponent(token)}`,
-      {
-        method: "GET",
-        headers: { Origin: "https://shalom.fyi" },
-        signal: AbortSignal.timeout(1e4)
-      }
-    );
-    if (!response.ok) return res.redirect("/?auth_error=verify_failed");
-    const data = await response.json();
-    req.session.user = { user_id: data.user_id, email: data.email, role: data.role };
-    req.session.save(() => res.redirect("/"));
-  } catch (err) {
-    res.redirect("/?auth_error=verify_failed");
-  }
-});
-router2.get("/auth/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie("connect.sid");
-    res.redirect("https://bridget.fyi/auth/sso/logout?next=https://shalom.fyi/");
-  });
-});
-var auth_default = router2;
-
-// src/routes/member.ts
-var import_express3 = __toESM(require_express2(), 1);
-var router3 = (0, import_express3.Router)();
-router3.get("/member/status", (req, res) => {
-  if (req.session.user) {
-    res.json({
-      authenticated: true,
-      email: req.session.user.email,
-      role: req.session.user.role
-    });
-  } else {
-    res.json({ authenticated: false });
-  }
-});
-var member_default = router3;
-
-// src/routes/conversations.ts
-var import_express4 = __toESM(require_express2(), 1);
 
 // ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/drizzle-orm/entity.js
 var entityKind = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
@@ -46043,6 +45996,7 @@ __export(schema_exports, {
   conversationsTable: () => conversationsTable,
   insertConversationSchema: () => insertConversationSchema,
   insertMessageSchema: () => insertMessageSchema,
+  invitesTable: () => invitesTable,
   messagesTable: () => messagesTable
 });
 
@@ -57471,6 +57425,17 @@ var insertMessageSchema = createInsertSchema(messagesTable).omit({
   hash: true
 });
 
+// ../../lib/db/src/schema/invites.ts
+var invitesTable = pgTable("invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  token: text("token").notNull().unique(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversationsTable.id),
+  invitedEmail: text("invited_email"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true })
+});
+
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
 if (!process.env.DATABASE_URL) {
@@ -57480,6 +57445,77 @@ if (!process.env.DATABASE_URL) {
 }
 var pool = new Pool3({ connectionString: process.env.DATABASE_URL });
 var db = drizzle(pool, { schema: schema_exports });
+
+// src/routes/auth.ts
+var router2 = (0, import_express2.Router)();
+router2.get("/auth/sso/callback", async (req, res) => {
+  const token = typeof req.query.sso_token === "string" ? req.query.sso_token : typeof req.query.token === "string" ? req.query.token : null;
+  if (!token) return res.redirect("/?auth_error=missing_token");
+  try {
+    const response = await fetch(
+      `https://bridget.fyi/auth/sso/verify?token=${encodeURIComponent(token)}`,
+      {
+        method: "GET",
+        headers: { Origin: "https://shalom.fyi" },
+        signal: AbortSignal.timeout(1e4)
+      }
+    );
+    if (!response.ok) return res.redirect("/?auth_error=verify_failed");
+    const data = await response.json();
+    req.session.user = { user_id: data.user_id, email: data.email, role: data.role };
+    const pendingToken = req.session.pendingInvite;
+    req.session.pendingInvite = void 0;
+    if (pendingToken) {
+      try {
+        const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, pendingToken));
+        if (invite && invite.status === "pending") {
+          const [updated] = await db.update(conversationsTable).set({ partnerUserId: data.user_id }).where(
+            and(
+              eq(conversationsTable.id, invite.conversationId),
+              isNull(conversationsTable.partnerUserId)
+            )
+          ).returning();
+          if (updated) {
+            await db.update(invitesTable).set({ status: "accepted", acceptedAt: /* @__PURE__ */ new Date() }).where(eq(invitesTable.id, invite.id));
+            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            return;
+          }
+        }
+      } catch {
+      }
+    }
+    req.session.save(() => res.redirect("/"));
+  } catch (err) {
+    res.redirect("/?auth_error=verify_failed");
+  }
+});
+router2.get("/auth/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie("connect.sid");
+    res.redirect("https://bridget.fyi/auth/sso/logout?next=https://shalom.fyi/");
+  });
+});
+var auth_default = router2;
+
+// src/routes/member.ts
+var import_express3 = __toESM(require_express2(), 1);
+var router3 = (0, import_express3.Router)();
+router3.get("/member/status", (req, res) => {
+  if (req.session.user) {
+    res.json({
+      authenticated: true,
+      email: req.session.user.email,
+      role: req.session.user.role
+    });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+var member_default = router3;
+
+// src/routes/conversations.ts
+var import_express4 = __toESM(require_express2(), 1);
+import crypto2 from "node:crypto";
 
 // ../../node_modules/.pnpm/@anthropic-ai+sdk@0.78.0_zod@3.25.76/node_modules/@anthropic-ai/sdk/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
@@ -57501,13 +57537,13 @@ function __classPrivateFieldGet(receiver, state, kind, f) {
 
 // ../../node_modules/.pnpm/@anthropic-ai+sdk@0.78.0_zod@3.25.76/node_modules/@anthropic-ai/sdk/internal/utils/uuid.mjs
 var uuid42 = function() {
-  const { crypto: crypto2 } = globalThis;
-  if (crypto2?.randomUUID) {
-    uuid42 = crypto2.randomUUID.bind(crypto2);
-    return crypto2.randomUUID();
+  const { crypto: crypto3 } = globalThis;
+  if (crypto3?.randomUUID) {
+    uuid42 = crypto3.randomUUID.bind(crypto3);
+    return crypto3.randomUUID();
   }
   const u8 = new Uint8Array(1);
-  const randomByte = crypto2 ? () => crypto2.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
+  const randomByte = crypto3 ? () => crypto3.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (+c ^ randomByte() & 15 >> +c / 4).toString(16));
 };
 
@@ -62514,15 +62550,51 @@ Should you speak now?`
   }
   res.status(201).json({ message, bridgetMessage });
 });
+router4.post("/conversations/:id/invite", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+  if (!convo) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  const token = crypto2.randomBytes(32).toString("hex");
+  await db.insert(invitesTable).values({
+    token,
+    conversationId: id,
+    invitedEmail: convo.partnerEmail ?? void 0
+  });
+  res.status(201).json({ inviteUrl: `https://shalom.fyi/invite/${token}` });
+});
 var conversations_default = router4;
 
-// src/routes/index.ts
+// src/routes/invite.ts
+var import_express5 = __toESM(require_express2(), 1);
 var router5 = (0, import_express5.Router)();
-router5.use(health_default);
-router5.use(auth_default);
-router5.use(member_default);
-router5.use(conversations_default);
-var routes_default = router5;
+var SSO_INIT_URL = "https://bridget.fyi/auth/sso?origin=https://shalom.fyi";
+router5.get("/invite/:token", async (req, res) => {
+  const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+  const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, token));
+  if (!invite || invite.status !== "pending") {
+    res.redirect("/?invite_error=invalid");
+    return;
+  }
+  req.session.pendingInvite = token;
+  req.session.save(() => {
+    res.redirect(SSO_INIT_URL);
+  });
+});
+var invite_default = router5;
+
+// src/routes/index.ts
+var router6 = (0, import_express6.Router)();
+router6.use(health_default);
+router6.use(auth_default);
+router6.use(member_default);
+router6.use(conversations_default);
+router6.use(invite_default);
+var routes_default = router6;
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -62543,7 +62615,7 @@ var logger = (0, import_pino.default)({
 });
 
 // src/app.ts
-var app = (0, import_express6.default)();
+var app = (0, import_express7.default)();
 app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.default)({
@@ -62565,8 +62637,8 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express6.default.json());
-app.use(import_express6.default.urlencoded({ extended: true }));
+app.use(import_express7.default.json());
+app.use(import_express7.default.urlencoded({ extended: true }));
 app.use((0, import_express_session.default)({
   secret: process.env["SESSION_SECRET"] ?? "shalom-secret",
   resave: false,
@@ -62575,7 +62647,7 @@ app.use((0, import_express_session.default)({
 }));
 app.use("/", routes_default);
 var STATIC_DIR = process.env.STATIC_DIR || "/app/artifacts/shalom/dist/public";
-app.use(import_express6.default.static(STATIC_DIR));
+app.use(import_express7.default.static(STATIC_DIR));
 app.use((_req, res) => res.sendFile(path2.join(STATIC_DIR, "index.html")));
 var app_default = app;
 

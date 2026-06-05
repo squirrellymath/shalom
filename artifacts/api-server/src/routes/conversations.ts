@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or } from "drizzle-orm";
-import { db, conversationsTable, messagesTable } from "@workspace/db";
+import { db, conversationsTable, messagesTable, invitesTable } from "@workspace/db";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { insertMessage, verifyChain } from "../lib/message-chain";
@@ -179,6 +180,33 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
   }
 
   res.status(201).json({ message, bridgetMessage });
+});
+
+router.post("/conversations/:id/invite", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const [convo] = await db
+    .select()
+    .from(conversationsTable)
+    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+
+  if (!convo) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+
+  await db.insert(invitesTable).values({
+    token,
+    conversationId: id,
+    invitedEmail: convo.partnerEmail ?? undefined,
+  });
+
+  res.status(201).json({ inviteUrl: `https://shalom.fyi/invite/${token}` });
 });
 
 export default router;
