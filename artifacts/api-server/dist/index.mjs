@@ -33761,6 +33761,12 @@ router2.get("/auth/sso/callback", async (req, res) => {
     res.redirect("/?auth_error=verify_failed");
   }
 });
+router2.get("/auth/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie("connect.sid");
+    res.redirect("/");
+  });
+});
 var auth_default = router2;
 
 // src/routes/member.ts

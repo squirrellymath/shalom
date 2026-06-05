@@ -24,4 +24,11 @@ router.get("/auth/sso/callback", async (req, res) => {
   }
 });
 
+router.get("/auth/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie("connect.sid");
+    res.redirect("/");
+  });
+});
+
 export default router;
