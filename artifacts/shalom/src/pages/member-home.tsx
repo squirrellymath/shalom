@@ -75,6 +75,10 @@ export default function MemberHome({ email }: { email?: string }) {
     <div className="min-h-screen bg-stone-50 text-stone-900">
       {view === "home" ? (
         <div className="max-w-2xl mx-auto px-5 py-10">
+          <div className="flex items-center gap-2 mb-10">
+            <span className="text-2xl text-stone-800">ש</span>
+            <span className="text-xl font-light tracking-wide text-stone-800">Shalom</span>
+          </div>
           <div className="flex items-end justify-between mb-8">
             <div>
               <h1 className="text-2xl font-light">Your conversations</h1>
