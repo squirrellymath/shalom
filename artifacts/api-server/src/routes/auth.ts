@@ -27,7 +27,7 @@ router.get("/auth/sso/callback", async (req, res) => {
 router.get("/auth/logout", (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("connect.sid");
-    res.redirect("/");
+    res.redirect("https://bridget.fyi/auth/sso/logout?next=https://shalom.fyi/");
   });
 });
 

@@ -33764,7 +33764,7 @@ router2.get("/auth/sso/callback", async (req, res) => {
 router2.get("/auth/logout", (req, res) => {
   req.session.destroy(() => {
     res.clearCookie("connect.sid");
-    res.redirect("/");
+    res.redirect("https://bridget.fyi/auth/sso/logout?next=https://shalom.fyi/");
   });
 });
 var auth_default = router2;
