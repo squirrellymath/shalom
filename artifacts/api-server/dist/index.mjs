@@ -33789,6 +33789,7 @@ var logger = (0, import_pino.default)({
 
 // src/app.ts
 var app = (0, import_express4.default)();
+app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.default)({
     logger,
