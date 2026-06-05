@@ -16651,7 +16651,7 @@ var require_implementation = __commonJS({
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
-    var max = Math.max;
+    var max2 = Math.max;
     var funcType = "[object Function]";
     var concatty = function concatty2(a, b) {
       var arr = [];
@@ -16703,7 +16703,7 @@ var require_implementation = __commonJS({
           concatty(args, arguments)
         );
       };
-      var boundLength = max(0, target.length - args.length);
+      var boundLength = max2(0, target.length - args.length);
       var boundArgs = [];
       for (var i = 0; i < boundLength; i++) {
         boundArgs[i] = "$" + i;
@@ -16860,7 +16860,7 @@ var require_get_intrinsic = __commonJS({
     var $URIError = require_uri();
     var abs = require_abs();
     var floor = require_floor();
-    var max = require_max();
+    var max2 = require_max();
     var min = require_min();
     var pow = require_pow();
     var round = require_round();
@@ -16974,7 +16974,7 @@ var require_get_intrinsic = __commonJS({
       "%Object.getPrototypeOf%": $ObjectGPO,
       "%Math.abs%": abs,
       "%Math.floor%": floor,
-      "%Math.max%": max,
+      "%Math.max%": max2,
       "%Math.min%": min,
       "%Math.pow%": pow,
       "%Math.round%": round,
@@ -19549,10 +19549,10 @@ var require_proxy_addr = __commonJS({
       if (pos === -1 && ip.kind() === "ipv6" && ip.isIPv4MappedAddress()) {
         ip = ip.toIPv4Address();
       }
-      var max = ip.kind() === "ipv6" ? 128 : 32;
+      var max2 = ip.kind() === "ipv6" ? 128 : 32;
       var range = pos !== -1 ? note.substring(pos + 1, note.length) : null;
       if (range === null) {
-        range = max;
+        range = max2;
       } else if (DIGIT_REGEXP.test(range)) {
         range = parseInt(range, 10);
       } else if (ip.kind() === "ipv4" && isip(range)) {
@@ -19560,7 +19560,7 @@ var require_proxy_addr = __commonJS({
       } else {
         range = null;
       }
-      if (range <= 0 || range > max) {
+      if (range <= 0 || range > max2) {
         throw new TypeError("invalid range on address: " + note);
       }
       return [ip, range];
@@ -22315,12 +22315,12 @@ var require_cookie = __commonJS({
       } while (index < len);
       return obj;
     }
-    function startIndex(str, index, max) {
+    function startIndex(str, index, max2) {
       do {
         var code = str.charCodeAt(index);
         if (code !== 32 && code !== 9) return index;
-      } while (++index < max);
-      return max;
+      } while (++index < max2);
+      return max2;
     }
     function endIndex(str, index, min) {
       while (index > min) {
@@ -25808,7 +25808,7 @@ var require_wait = __commonJS({
     "use strict";
     var MAX_TIMEOUT = 1e3;
     function wait(state, index, expected, timeout, done) {
-      const max = Date.now() + timeout;
+      const max2 = Date.now() + timeout;
       let current = Atomics.load(state, index);
       if (current === expected) {
         done(null, "ok");
@@ -25816,7 +25816,7 @@ var require_wait = __commonJS({
       }
       let prior = current;
       const check2 = (backoff) => {
-        if (Date.now() > max) {
+        if (Date.now() > max2) {
           done(null, "timed-out");
         } else {
           setTimeout(() => {
@@ -25834,14 +25834,14 @@ var require_wait = __commonJS({
       check2(1);
     }
     function waitDiff(state, index, expected, timeout, done) {
-      const max = Date.now() + timeout;
+      const max2 = Date.now() + timeout;
       let current = Atomics.load(state, index);
       if (current !== expected) {
         done(null, "ok");
         return;
       }
       const check2 = (backoff) => {
-        if (Date.now() > max) {
+        if (Date.now() > max2) {
           done(null, "timed-out");
         } else {
           setTimeout(() => {
@@ -36503,14 +36503,14 @@ var ZodString = class _ZodString2 extends ZodType {
     return min;
   }
   get maxLength() {
-    let max = null;
+    let max2 = null;
     for (const ch of this._def.checks) {
       if (ch.kind === "max") {
-        if (max === null || ch.value < max)
-          max = ch.value;
+        if (max2 === null || ch.value < max2)
+          max2 = ch.value;
       }
     }
-    return max;
+    return max2;
   }
 };
 ZodString.create = (params) => {
@@ -36724,20 +36724,20 @@ var ZodNumber = class _ZodNumber extends ZodType {
     return min;
   }
   get maxValue() {
-    let max = null;
+    let max2 = null;
     for (const ch of this._def.checks) {
       if (ch.kind === "max") {
-        if (max === null || ch.value < max)
-          max = ch.value;
+        if (max2 === null || ch.value < max2)
+          max2 = ch.value;
       }
     }
-    return max;
+    return max2;
   }
   get isInt() {
     return !!this._def.checks.find((ch) => ch.kind === "int" || ch.kind === "multipleOf" && util.isInteger(ch.value));
   }
   get isFinite() {
-    let max = null;
+    let max2 = null;
     let min = null;
     for (const ch of this._def.checks) {
       if (ch.kind === "finite" || ch.kind === "int" || ch.kind === "multipleOf") {
@@ -36746,11 +36746,11 @@ var ZodNumber = class _ZodNumber extends ZodType {
         if (min === null || ch.value > min)
           min = ch.value;
       } else if (ch.kind === "max") {
-        if (max === null || ch.value < max)
-          max = ch.value;
+        if (max2 === null || ch.value < max2)
+          max2 = ch.value;
       }
     }
-    return Number.isFinite(min) && Number.isFinite(max);
+    return Number.isFinite(min) && Number.isFinite(max2);
   }
 };
 ZodNumber.create = (params) => {
@@ -36915,14 +36915,14 @@ var ZodBigInt = class _ZodBigInt extends ZodType {
     return min;
   }
   get maxValue() {
-    let max = null;
+    let max2 = null;
     for (const ch of this._def.checks) {
       if (ch.kind === "max") {
-        if (max === null || ch.value < max)
-          max = ch.value;
+        if (max2 === null || ch.value < max2)
+          max2 = ch.value;
       }
     }
-    return max;
+    return max2;
   }
 };
 ZodBigInt.create = (params) => {
@@ -37049,14 +37049,14 @@ var ZodDate = class _ZodDate extends ZodType {
     return min != null ? new Date(min) : null;
   }
   get maxDate() {
-    let max = null;
+    let max2 = null;
     for (const ch of this._def.checks) {
       if (ch.kind === "max") {
-        if (max === null || ch.value < max)
-          max = ch.value;
+        if (max2 === null || ch.value < max2)
+          max2 = ch.value;
       }
     }
-    return max != null ? new Date(max) : null;
+    return max2 != null ? new Date(max2) : null;
   }
 };
 ZodDate.create = (params) => {
@@ -39307,6 +39307,9 @@ function iife(fn, ...args) {
 }
 
 // ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/drizzle-orm/pg-core/unique-constraint.js
+function unique(name) {
+  return new UniqueOnConstraintBuilder(name);
+}
 function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
@@ -42062,17 +42065,17 @@ function exists(subquery) {
 function notExists(subquery) {
   return sql`not exists ${subquery}`;
 }
-function between(column, min, max) {
+function between(column, min, max2) {
   return sql`${column} between ${bindIfParam(min, column)} and ${bindIfParam(
-    max,
+    max2,
     column
   )}`;
 }
-function notBetween(column, min, max) {
+function notBetween(column, min, max2) {
   return sql`${column} not between ${bindIfParam(
     min,
     column
-  )} and ${bindIfParam(max, column)}`;
+  )} and ${bindIfParam(max2, column)}`;
 }
 function like(column, value) {
   return sql`${column} like ${value}`;
@@ -42354,6 +42357,11 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
     }
   }
   return result;
+}
+
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/drizzle-orm/sql/functions/aggregate.js
+function max(expression) {
+  return sql`max(${expression})`.mapWith(is(expression, Column) ? expression : String);
 }
 
 // ../../node_modules/.pnpm/pg@8.20.0/node_modules/pg/esm/index.mjs
@@ -57265,11 +57273,11 @@ function columnToSchema(column, factory) {
 function numberColumnToSchema(column, z, coerce2) {
   let unsigned = column.getSQLType().includes("unsigned");
   let min;
-  let max;
+  let max2;
   let integer3 = false;
   if (isColumnType(column, ["MySqlTinyInt", "SingleStoreTinyInt"])) {
     min = unsigned ? 0 : CONSTANTS.INT8_MIN;
-    max = unsigned ? CONSTANTS.INT8_UNSIGNED_MAX : CONSTANTS.INT8_MAX;
+    max2 = unsigned ? CONSTANTS.INT8_UNSIGNED_MAX : CONSTANTS.INT8_MAX;
     integer3 = true;
   } else if (isColumnType(column, [
     "PgSmallInt",
@@ -57278,7 +57286,7 @@ function numberColumnToSchema(column, z, coerce2) {
     "SingleStoreSmallInt"
   ])) {
     min = unsigned ? 0 : CONSTANTS.INT16_MIN;
-    max = unsigned ? CONSTANTS.INT16_UNSIGNED_MAX : CONSTANTS.INT16_MAX;
+    max2 = unsigned ? CONSTANTS.INT16_UNSIGNED_MAX : CONSTANTS.INT16_MAX;
     integer3 = true;
   } else if (isColumnType(column, [
     "PgReal",
@@ -57288,7 +57296,7 @@ function numberColumnToSchema(column, z, coerce2) {
     "SingleStoreFloat"
   ])) {
     min = unsigned ? 0 : CONSTANTS.INT24_MIN;
-    max = unsigned ? CONSTANTS.INT24_UNSIGNED_MAX : CONSTANTS.INT24_MAX;
+    max2 = unsigned ? CONSTANTS.INT24_UNSIGNED_MAX : CONSTANTS.INT24_MAX;
     integer3 = isColumnType(column, ["MySqlMediumInt", "SingleStoreMediumInt"]);
   } else if (isColumnType(column, [
     "PgInteger",
@@ -57297,7 +57305,7 @@ function numberColumnToSchema(column, z, coerce2) {
     "SingleStoreInt"
   ])) {
     min = unsigned ? 0 : CONSTANTS.INT32_MIN;
-    max = unsigned ? CONSTANTS.INT32_UNSIGNED_MAX : CONSTANTS.INT32_MAX;
+    max2 = unsigned ? CONSTANTS.INT32_UNSIGNED_MAX : CONSTANTS.INT32_MAX;
     integer3 = true;
   } else if (isColumnType(column, [
     "PgDoublePrecision",
@@ -57308,7 +57316,7 @@ function numberColumnToSchema(column, z, coerce2) {
     "SQLiteReal"
   ])) {
     min = unsigned ? 0 : CONSTANTS.INT48_MIN;
-    max = unsigned ? CONSTANTS.INT48_UNSIGNED_MAX : CONSTANTS.INT48_MAX;
+    max2 = unsigned ? CONSTANTS.INT48_UNSIGNED_MAX : CONSTANTS.INT48_MAX;
   } else if (isColumnType(column, [
     "PgBigInt53",
     "PgBigSerial53",
@@ -57320,47 +57328,47 @@ function numberColumnToSchema(column, z, coerce2) {
   ])) {
     unsigned = unsigned || isColumnType(column, ["MySqlSerial", "SingleStoreSerial"]);
     min = unsigned ? 0 : Number.MIN_SAFE_INTEGER;
-    max = Number.MAX_SAFE_INTEGER;
+    max2 = Number.MAX_SAFE_INTEGER;
     integer3 = true;
   } else if (isColumnType(column, ["MySqlYear", "SingleStoreYear"])) {
     min = 1901;
-    max = 2155;
+    max2 = 2155;
     integer3 = true;
   } else {
     min = Number.MIN_SAFE_INTEGER;
-    max = Number.MAX_SAFE_INTEGER;
+    max2 = Number.MAX_SAFE_INTEGER;
   }
   let schema = coerce2 === true || coerce2?.number ? integer3 ? z.coerce.number() : z.coerce.number().int() : integer3 ? z.int() : z.number();
-  schema = schema.gte(min).lte(max);
+  schema = schema.gte(min).lte(max2);
   return schema;
 }
 function bigintColumnToSchema(column, z, coerce2) {
   const unsigned = column.getSQLType().includes("unsigned");
   const min = unsigned ? 0n : CONSTANTS.INT64_MIN;
-  const max = unsigned ? CONSTANTS.INT64_UNSIGNED_MAX : CONSTANTS.INT64_MAX;
+  const max2 = unsigned ? CONSTANTS.INT64_UNSIGNED_MAX : CONSTANTS.INT64_MAX;
   const schema = coerce2 === true || coerce2?.bigint ? z.coerce.bigint() : z.bigint();
-  return schema.gte(min).lte(max);
+  return schema.gte(min).lte(max2);
 }
 function stringColumnToSchema(column, z, coerce2) {
   if (isColumnType(column, ["PgUUID"])) {
     return z.uuid();
   }
-  let max;
+  let max2;
   let regex;
   let fixed = false;
   if (isColumnType(column, ["PgVarchar", "SQLiteText"])) {
-    max = column.length;
+    max2 = column.length;
   } else if (isColumnType(column, ["MySqlVarChar", "SingleStoreVarChar"])) {
-    max = column.length ?? CONSTANTS.INT16_UNSIGNED_MAX;
+    max2 = column.length ?? CONSTANTS.INT16_UNSIGNED_MAX;
   } else if (isColumnType(column, ["MySqlText", "SingleStoreText"])) {
     if (column.textType === "longtext") {
-      max = CONSTANTS.INT32_UNSIGNED_MAX;
+      max2 = CONSTANTS.INT32_UNSIGNED_MAX;
     } else if (column.textType === "mediumtext") {
-      max = CONSTANTS.INT24_UNSIGNED_MAX;
+      max2 = CONSTANTS.INT24_UNSIGNED_MAX;
     } else if (column.textType === "text") {
-      max = CONSTANTS.INT16_UNSIGNED_MAX;
+      max2 = CONSTANTS.INT16_UNSIGNED_MAX;
     } else {
-      max = CONSTANTS.INT8_UNSIGNED_MAX;
+      max2 = CONSTANTS.INT8_UNSIGNED_MAX;
     }
   }
   if (isColumnType(column, [
@@ -57368,16 +57376,16 @@ function stringColumnToSchema(column, z, coerce2) {
     "MySqlChar",
     "SingleStoreChar"
   ])) {
-    max = column.length;
+    max2 = column.length;
     fixed = true;
   }
   if (isColumnType(column, ["PgBinaryVector"])) {
     regex = /^[01]+$/;
-    max = column.dimensions;
+    max2 = column.dimensions;
   }
   let schema = coerce2 === true || coerce2?.string ? z.coerce.string() : z.string();
   schema = regex ? schema.regex(regex) : schema;
-  return max && fixed ? schema.length(max) : max ? schema.max(max) : schema;
+  return max2 && fixed ? schema.length(max2) : max2 ? schema.max(max2) : schema;
 }
 function getColumns(tableLike) {
   return isTable(tableLike) ? getTableColumns(tableLike) : getViewSelectedFields(tableLike);
@@ -57445,13 +57453,21 @@ var insertConversationSchema = createInsertSchema(conversationsTable).omit({
 var messagesTable = pgTable("messages", {
   id: uuid("id").primaryKey().defaultRandom(),
   conversationId: uuid("conversation_id").notNull().references(() => conversationsTable.id, { onDelete: "cascade" }),
+  seq: bigint("seq", { mode: "number" }).notNull(),
   sender: text("sender").notNull(),
   text: text("text").notNull(),
+  prevHash: text("prev_hash").notNull(),
+  hash: text("hash").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
+}, (t) => [
+  unique("messages_conversation_seq_uniq").on(t.conversationId, t.seq)
+]);
 var insertMessageSchema = createInsertSchema(messagesTable).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  seq: true,
+  prevHash: true,
+  hash: true
 });
 
 // ../../lib/db/src/index.ts
@@ -62323,6 +62339,68 @@ var anthropic = new Anthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL
 });
 
+// src/lib/message-chain.ts
+import { createHash } from "node:crypto";
+function computeHash(fields) {
+  const input = [
+    fields.prevHash,
+    fields.conversationId,
+    String(fields.seq),
+    fields.sender,
+    fields.text,
+    fields.createdAt.toISOString()
+  ].join("\n");
+  return createHash("sha256").update(input).digest("hex");
+}
+async function insertMessage(conversationId, sender, text2, maxRetries = 5) {
+  let lastErr;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await db.transaction(async (tx) => {
+        const [agg] = await tx.select({ maxSeq: max(messagesTable.seq) }).from(messagesTable).where(eq(messagesTable.conversationId, conversationId));
+        const seq = (agg?.maxSeq ?? -1) + 1;
+        let prevHash = "";
+        if (seq > 0) {
+          const [prev] = await tx.select({ hash: messagesTable.hash }).from(messagesTable).where(eq(messagesTable.conversationId, conversationId)).orderBy(desc(messagesTable.seq)).limit(1);
+          prevHash = prev?.hash ?? "";
+        }
+        const createdAt = /* @__PURE__ */ new Date();
+        const hash = computeHash({ prevHash, conversationId, seq, sender, text: text2, createdAt });
+        const [msg] = await tx.insert(messagesTable).values({ conversationId, sender, text: text2, seq, prevHash, hash, createdAt }).returning();
+        return msg;
+      });
+    } catch (err) {
+      lastErr = err;
+      const isConflict = err?.code === "23505";
+      if (isConflict && attempt < maxRetries - 1) continue;
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+async function verifyChain(conversationId) {
+  const messages = await db.select().from(messagesTable).where(eq(messagesTable.conversationId, conversationId)).orderBy(messagesTable.seq);
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    const expectedPrevHash = i === 0 ? "" : messages[i - 1].hash;
+    if (m.prevHash !== expectedPrevHash) {
+      return { valid: false, brokenAtSeq: m.seq };
+    }
+    const expectedHash = computeHash({
+      prevHash: m.prevHash,
+      conversationId: m.conversationId,
+      seq: m.seq,
+      sender: m.sender,
+      text: m.text,
+      createdAt: m.createdAt
+    });
+    if (m.hash !== expectedHash) {
+      return { valid: false, brokenAtSeq: m.seq };
+    }
+  }
+  return { valid: true };
+}
+
 // src/routes/conversations.ts
 var router4 = (0, import_express4.Router)();
 var CreateConversationBody = external_exports.object({
@@ -62359,7 +62437,7 @@ router4.post("/conversations", async (req, res) => {
   const { partnerName, partnerEmail, topic, mode } = parsed.data;
   const [convo] = await db.insert(conversationsTable).values({ ownerUserId: userId, partnerName, partnerEmail, topic, mode }).returning();
   const introText = `I'm Bridget. I'll stay with you and ${partnerName} here. Everything said is timestamped and kept \u2014 a record that belongs to both of you.`;
-  const [introMsg] = await db.insert(messagesTable).values({ conversationId: convo.id, sender: "bridget", text: introText }).returning();
+  const introMsg = await insertMessage(convo.id, "bridget", introText);
   res.status(201).json({ ...convo, messages: [introMsg] });
 });
 router4.get("/conversations/:id/messages", async (req, res) => {
@@ -62371,8 +62449,20 @@ router4.get("/conversations/:id/messages", async (req, res) => {
     res.status(404).json({ error: "Conversation not found" });
     return;
   }
-  const messages = await db.select().from(messagesTable).where(eq(messagesTable.conversationId, id)).orderBy(messagesTable.createdAt);
+  const messages = await db.select().from(messagesTable).where(eq(messagesTable.conversationId, id)).orderBy(messagesTable.seq);
   res.json(messages);
+});
+router4.get("/conversations/:id/messages/verify", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+  if (!convo) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  const result = await verifyChain(id);
+  res.json(result);
 });
 router4.post("/conversations/:id/messages", async (req, res) => {
   const userId = requireAuth(req, res);
@@ -62389,13 +62479,13 @@ router4.post("/conversations/:id/messages", async (req, res) => {
     return;
   }
   const sender = req.session.user.email;
-  const [message] = await db.insert(messagesTable).values({ conversationId: id, sender, text: parsed.data.text }).returning();
+  const message = await insertMessage(id, sender, parsed.data.text);
   await db.update(conversationsTable).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversationsTable.id, id));
   let bridgetMessage = void 0;
   if (convo.mode === "mediated") {
     try {
-      const recent = await db.select().from(messagesTable).where(eq(messagesTable.conversationId, id)).orderBy(desc(messagesTable.createdAt)).limit(15);
-      const transcript = recent.reverse().map((m) => `${m.sender === "bridget" ? "Bridget" : m.sender}: ${m.text}`).join("\n");
+      const recent = await db.select().from(messagesTable).where(eq(messagesTable.conversationId, id)).orderBy(messagesTable.seq);
+      const transcript = recent.slice(-15).map((m) => `${m.sender === "bridget" ? "Bridget" : m.sender}: ${m.text}`).join("\n");
       const aiRes = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 8192,
@@ -62413,10 +62503,9 @@ Should you speak now?`
       });
       const block = aiRes.content[0];
       if (block.type === "text") {
-        const parsed2 = JSON.parse(block.text);
-        if (parsed2.speak && parsed2.text.trim()) {
-          const [bMsg] = await db.insert(messagesTable).values({ conversationId: id, sender: "bridget", text: parsed2.text.trim() }).returning();
-          bridgetMessage = bMsg;
+        const aiParsed = JSON.parse(block.text);
+        if (aiParsed.speak && aiParsed.text.trim()) {
+          bridgetMessage = await insertMessage(id, "bridget", aiParsed.text.trim());
         }
       }
     } catch {

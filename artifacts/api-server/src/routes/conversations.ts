@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, conversationsTable, messagesTable } from "@workspace/db";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { insertMessage, verifyChain } from "../lib/message-chain";
 
 const router: IRouter = Router();
 
@@ -57,10 +58,7 @@ router.post("/conversations", async (req, res): Promise<void> => {
     .returning();
 
   const introText = `I'm Bridget. I'll stay with you and ${partnerName} here. Everything said is timestamped and kept — a record that belongs to both of you.`;
-  const [introMsg] = await db
-    .insert(messagesTable)
-    .values({ conversationId: convo.id, sender: "bridget", text: introText })
-    .returning();
+  const introMsg = await insertMessage(convo.id, "bridget", introText);
 
   res.status(201).json({ ...convo, messages: [introMsg] });
 });
@@ -85,9 +83,29 @@ router.get("/conversations/:id/messages", async (req, res): Promise<void> => {
     .select()
     .from(messagesTable)
     .where(eq(messagesTable.conversationId, id))
-    .orderBy(messagesTable.createdAt);
+    .orderBy(messagesTable.seq);
 
   res.json(messages);
+});
+
+router.get("/conversations/:id/messages/verify", async (req, res): Promise<void> => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const [convo] = await db
+    .select()
+    .from(conversationsTable)
+    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
+
+  if (!convo) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
+  const result = await verifyChain(id);
+  res.json(result);
 });
 
 router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
@@ -113,10 +131,7 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
   }
 
   const sender = req.session.user!.email;
-  const [message] = await db
-    .insert(messagesTable)
-    .values({ conversationId: id, sender, text: parsed.data.text })
-    .returning();
+  const message = await insertMessage(id, sender, parsed.data.text);
 
   await db
     .update(conversationsTable)
@@ -131,11 +146,10 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
         .select()
         .from(messagesTable)
         .where(eq(messagesTable.conversationId, id))
-        .orderBy(desc(messagesTable.createdAt))
-        .limit(15);
+        .orderBy(messagesTable.seq);
 
       const transcript = recent
-        .reverse()
+        .slice(-15)
         .map((m) => `${m.sender === "bridget" ? "Bridget" : m.sender}: ${m.text}`)
         .join("\n");
 
@@ -154,13 +168,9 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
 
       const block = aiRes.content[0];
       if (block.type === "text") {
-        const parsed = JSON.parse(block.text) as { speak: boolean; text: string };
-        if (parsed.speak && parsed.text.trim()) {
-          const [bMsg] = await db
-            .insert(messagesTable)
-            .values({ conversationId: id, sender: "bridget", text: parsed.text.trim() })
-            .returning();
-          bridgetMessage = bMsg;
+        const aiParsed = JSON.parse(block.text) as { speak: boolean; text: string };
+        if (aiParsed.speak && aiParsed.text.trim()) {
+          bridgetMessage = await insertMessage(id, "bridget", aiParsed.text.trim());
         }
       }
     } catch {
