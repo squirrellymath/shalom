@@ -240,12 +240,24 @@ function ConvoView({ convo, onBack, addMsg }: {
 
 function NewModal({ onClose, onCreate }: {
   onClose: () => void;
-  onCreate: (name: string, email: string, topic: string, mode: "witness" | "mediated") => void;
+  onCreate: (name: string, email: string, topic: string, mode: "witness" | "mediated") => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [topic, setTopic] = useState("");
   const [mode, setMode] = useState<"witness" | "mediated">("witness");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleCreate = async () => {
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onCreate(name.trim(), email.trim(), topic.trim(), mode);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-stone-900/40 flex items-center justify-center p-4 z-30" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
@@ -273,10 +285,10 @@ function NewModal({ onClose, onCreate }: {
             </button>
           </div>
         </div>
-        <button onClick={() => name.trim() && onCreate(name.trim(), email.trim(), topic.trim(), mode)}
-          disabled={!name.trim()}
+        <button onClick={handleCreate}
+          disabled={!name.trim() || submitting}
           className="w-full mt-5 py-3 rounded-xl bg-stone-900 text-white font-medium disabled:opacity-30 hover:bg-stone-800 transition">
-          Create & invite
+          {submitting ? "Creating…" : "Create & invite"}
         </button>
       </div>
     </div>
