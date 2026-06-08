@@ -1,0 +1,151 @@
+# SSO Consumer Spec — Server-Backed Sites
+
+How to add "Sign in with Bridget" to a site that **has its own server** (Express/Node).
+Proven on shalom.fyi, cashcow.fyi, rememberingtherebbi.org — all use the identical contract below.
+
+> **Which path am I?**
+> - **This doc (JWT / `validate`)** → for sites with a backend server that can verify a token and hold a session. (cashcow, rebbi, shalom, verdicts.ai.)
+> - **NOT this doc** → static sites with no server (bloodlessrevolution.com, Invisible Cousin) use the **whoami** path instead: a different endpoint (`/auth/sso/whoami`), a different secret (`SSO_WHOAMI_SECRET`), display-only token (no email/role). Do not apply this spec to a static site.
+
+---
+
+## Step 0 — Register the site on Bridget (REQUIRED, do first)
+
+Nothing works until Bridget accepts the site's origin. Two edits in Bridget's `main.py`, then deploy:
+
+1. **Allowlist** (`_SSO_ALLOWED_ORIGINS` default, ~line 1013): add `yoursite.com` and `www.yoursite.com`.
+2. **JWT-consumer set** (the `if host in {…}` block, ~line 5220): add `yoursite.com` and `www.yoursite.com`.
+
+Then commit, push, **confirm Railway actually deployed it** (push ≠ deploy — check the active commit), and verify live:
+
+```
+GET https://bridget.fyi/auth/sso/init?return_to=https://yoursite.com/auth/sso/callback
+→ 302  (registered)        NOT  400 "Invalid return_to domain"
+```
+
+Negative control: same call with an unlisted domain must still return 400.
+
+> Note: this works only if `SSO_ALLOWED_ORIGINS` is **not** set as a Railway env var. If it is set, the code default is ignored — append the hostnames to the env var instead.
+
+---
+
+## The Bridget contract (verified — do not guess any of this)
+
+| Thing | Value |
+|---|---|
+| **Init URL** | `https://bridget.fyi/auth/sso/init?return_to=` + `encodeURIComponent("https://yoursite.com/auth/sso/callback")` |
+| **Verify endpoint** | `POST https://bridget.fyi/auth/sso/validate` |
+| **Verify request** | `Content-Type: application/json`, body `{ "token": "<sso_token>" }`. **No** Authorization header. **No** Origin requirement. The JWT is the credential. |
+| **Verify success** | 2xx with `{ valid: true, user_id, email, role }` |
+| **Logout URL** | `https://bridget.fyi/auth/sso/logout?next=` + `encodeURIComponent("https://yoursite.com/")` |
+
+> **Common trap:** do NOT call `GET /auth/sso/verify` — that path requires an `Authorization: Bearer` header or CORS-set membership and will 401 for a normal consumer. Use **`POST /auth/sso/validate`**.
+
+---
+
+## Server implementation
+
+### Session middleware (THIS is where the real bugs live)
+
+```js
+import session from "express-session";
+import FileStoreFactory from "session-file-store";
+const FileStore = FileStoreFactory(session);
+
+app.set("trust proxy", 1);              // REQUIRED behind Railway/Replit proxy, or secure cookie is silently dropped
+app.use(session({
+  store: new FileStore({ path: "./sessions", retries: 1, logFn: () => undefined }),
+  secret: process.env.SESSION_SECRET,   // must be set in env
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: true,                       // UNCONDITIONAL — do NOT gate on NODE_ENV (Railway doesn't set it → cookie breaks)
+    sameSite: "lax",                    // REQUIRED so the cookie survives the cross-site return from Bridget
+  },
+}));
+```
+
+The three settings that caused every past failure:
+1. **`app.set("trust proxy", 1)`** — without it Express thinks the request is plain HTTP and refuses to set a `Secure` cookie.
+2. **`secure: true` unconditional** — gating on `NODE_ENV === "production"` fails because Railway doesn't set `NODE_ENV`; the cookie then lacks `Secure` and browsers discard it over HTTPS.
+3. **`sameSite: "lax"`** — `strict` drops the cookie on the top-level redirect back from bridget.fyi.
+
+> Ensure `/auth` is in the API server's routed paths (e.g. `artifact.toml` `paths`), not just `/api`.
+
+### Callback
+
+```js
+router.get("/auth/sso/callback", async (req, res) => {
+  const ssoToken = req.query.sso_token;
+  try {
+    if (!ssoToken) return res.redirect("/");
+    const r = await fetch("https://bridget.fyi/auth/sso/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: ssoToken }),
+    });
+    if (!r.ok) return res.redirect("/");
+    const data = await r.json();
+    if (!data.valid || !data.user_id || !data.email || !data.role) return res.redirect("/");
+    req.session.user = { user_id: data.user_id, email: data.email, role: data.role };
+    req.session.save(() => res.redirect("/"));   // save BEFORE redirect
+  } catch (err) {
+    req.log?.error({ err }, "SSO callback error");
+    res.redirect("/");
+  }
+});
+```
+
+### Session check + logout
+
+```js
+router.get("/auth/me", (req, res) => res.json({ user: req.session.user ?? null }));
+
+router.get("/auth/logout", (req, res) => {
+  req.session.destroy(() =>
+    res.redirect("https://bridget.fyi/auth/sso/logout?next=" +
+      encodeURIComponent("https://yoursite.com/")));
+});
+```
+
+---
+
+## Frontend
+
+```js
+// On load — credentials:"include" is REQUIRED or the cookie isn't sent and you always see logged-out
+fetch("/auth/me", { credentials: "include" })
+  .then(r => r.json())
+  .then(({ user }) => setUser(user));
+
+// Signed out → "Sign in" is a plain link to the init URL
+// Signed in  → show user.email + "Sign out" that navigates to /auth/logout
+```
+
+---
+
+## Test checklist (do live, in a browser — smoke tests can't prove the round-trip)
+
+1. Click **Sign in** → bounces to Bridget → returns to your site showing the email. ✅
+2. `https://yoursite.com/auth/me` returns the user (not `{user:null}`). ✅
+3. Click **Sign out** → bounces through Bridget → returns showing "Sign in". ✅
+4. After step 3, refresh the **Bridget** tab → logged out there too (forward logout works). ✅
+
+---
+
+## Known limits (true for ALL consumers — not bugs)
+
+- **No reverse logout (SLO):** signing out of Bridget does NOT log you out of the consumer, even on refresh — the consumer holds its own session and never re-checks Bridget. Fixing this requires true Single Logout (back-channel notify), an ecosystem-wide build no site has yet.
+- **FileStore is ephemeral on Railway:** sessions survive restarts within a container but are wiped on redeploy (fresh container, empty `./sessions`). Strictly better than MemoryStore; for durable sessions across deploys, move to a DB/Redis store later.
+
+---
+
+## If login still returns `{user:null}` after building
+
+Check in this order — it's almost always #1–3:
+1. `trust proxy` missing → secure cookie never set.
+2. `secure` gated on `NODE_ENV` → cookie lacks Secure → browser drops it.
+3. `credentials:"include"` missing on the frontend `/auth/me` fetch → cookie never sent.
+4. Calling `/auth/sso/verify` instead of `POST /auth/sso/validate` → 401.
+5. Site not registered on Bridget (step 0) → init returns 400, callback never gets a token.
