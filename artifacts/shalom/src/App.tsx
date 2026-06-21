@@ -42,7 +42,7 @@ function Home() {
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs sm:text-sm font-sans tracking-wide text-primary/50 uppercase">
           <a href="https://bloodlessrevolution.com" className="hover:text-primary transition-colors duration-300">bloodlessrevolution.com</a>
           <span className="opacity-30">|</span>
-          <a href="https://bridget.fyi" className="hover:text-primary transition-colors duration-300">bridget.fyi</a>
+          <a href="https://bridget.ai" className="hover:text-primary transition-colors duration-300">bridget.ai</a>
           <span className="opacity-30">|</span>
           <a href="https://verdicts.ai" className="hover:text-primary transition-colors duration-300">verdicts.ai</a>
         </div>
@@ -88,7 +88,7 @@ function ComingSoon() {
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs sm:text-sm font-sans tracking-wide text-primary/50 uppercase">
           <a href="https://bloodlessrevolution.com" className="hover:text-primary transition-colors duration-300">bloodlessrevolution.com</a>
           <span className="opacity-30">|</span>
-          <a href="https://bridget.fyi" className="hover:text-primary transition-colors duration-300">bridget.fyi</a>
+          <a href="https://bridget.ai" className="hover:text-primary transition-colors duration-300">bridget.ai</a>
           <span className="opacity-30">|</span>
           <a href="https://verdicts.ai" className="hover:text-primary transition-colors duration-300">verdicts.ai</a>
         </div>
