@@ -57499,16 +57499,24 @@ var auth_default = router2;
 
 // src/routes/member.ts
 var import_express3 = __toESM(require_express2(), 1);
+var SHALOM_BYPASS = [
+  "justin.malkin@outlook.com",
+  "rechavambenshlomo@outlook.com",
+  "rechavambenshlomo@gmail.com",
+  "adam.kokesh@gmail.com"
+];
 var router3 = (0, import_express3.Router)();
 router3.get("/member/status", (req, res) => {
   if (req.session.user) {
+    const canAccess = SHALOM_BYPASS.includes(req.session.user.email.toLowerCase());
     res.json({
       authenticated: true,
+      canAccess,
       email: req.session.user.email,
       role: req.session.user.role
     });
   } else {
-    res.json({ authenticated: false });
+    res.json({ authenticated: false, canAccess: false });
   }
 });
 var member_default = router3;
