@@ -1,7 +1,11 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # compiled output
-dist
+artifacts/api-server/dist/
+lib/api-client-react/dist/
+lib/api-zod/dist/
+lib/db/dist/
+lib/integrations-anthropic-ai/dist/
 tmp
 out-tsc
 *.tsbuildinfo
