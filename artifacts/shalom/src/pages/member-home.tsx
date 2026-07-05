@@ -95,6 +95,18 @@ export default function MemberHome({ email }: { email?: string }) {
     } catch { return null; }
   };
 
+  const updateTopic = async (id: string, topic: string): Promise<Conversation | null> => {
+    try {
+      const convo = await apiFetch(`/conversations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic }),
+      });
+      setConversations((p) => p.map((c) => c.id === id ? { ...c, ...convo } : c));
+      return convo;
+    } catch { return null; }
+  };
+
   const openConvo = async (id: string) => {
     setActiveId(id);
     setView("conversation");
@@ -158,24 +170,48 @@ export default function MemberHome({ email }: { email?: string }) {
           )}
         </div>
       ) : active ? (
-        <ConvoView convo={active} onBack={() => { setView("home"); setActiveId(null); }} addMsg={addMsg} email={email} />
+        <ConvoView convo={active} onBack={() => { setView("home"); setActiveId(null); }} addMsg={addMsg} email={email} updateTopic={updateTopic} />
       ) : null}
       {modal && <NewModal onClose={() => setModal(false)} onCreate={create} />}
     </div>
   );
 }
 
-function ConvoView({ convo, onBack, addMsg, email }: {
+function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
   convo: Conversation;
   onBack: () => void;
   addMsg: (id: string, text: string) => Promise<Message | null>;
   email?: string;
+  updateTopic: (id: string, topic: string) => Promise<Conversation | null>;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState(false);
+  const [editingTopic, setEditingTopic] = useState(false);
+  const [topicDraft, setTopicDraft] = useState(convo.topic || "");
   const endRef = useRef<HTMLDivElement>(null);
+  const topicInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setTopicDraft(convo.topic || ""); }, [convo.id, convo.topic]);
+  useEffect(() => { if (editingTopic) topicInputRef.current?.focus(); }, [editingTopic]);
+
+  const startEditTopic = () => {
+    setTopicDraft(convo.topic || "");
+    setEditingTopic(true);
+  };
+
+  const saveTopic = async () => {
+    setEditingTopic(false);
+    const next = topicDraft.trim();
+    if (next === (convo.topic || "")) return;
+    await updateTopic(convo.id, next);
+  };
+
+  const cancelEditTopic = () => {
+    setTopicDraft(convo.topic || "");
+    setEditingTopic(false);
+  };
 
   const invite = async () => {
     setInviteError(false);
@@ -211,7 +247,28 @@ function ConvoView({ convo, onBack, addMsg, email }: {
         <button onClick={onBack} className="text-stone-400 hover:text-stone-700 transition"><ArrowLeft size={18} /></button>
         <div className="min-w-0">
           <div className="font-medium leading-none truncate">{convo.partnerName}</div>
-          <div className="text-xs text-stone-400 mt-0.5">{convo.topic || "facilitated by Bridget"}</div>
+          {editingTopic ? (
+            <input
+              ref={topicInputRef}
+              value={topicDraft}
+              onChange={(e) => setTopicDraft(e.target.value)}
+              onBlur={saveTopic}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.currentTarget.blur(); }
+                else if (e.key === "Escape") { cancelEditTopic(); }
+              }}
+              maxLength={200}
+              placeholder="Add a topic"
+              className="text-xs text-stone-600 mt-0.5 px-1 -mx-1 rounded border border-stone-300 focus:outline-none focus:border-stone-400 bg-white w-full max-w-[240px]"
+            />
+          ) : (
+            <button
+              onClick={startEditTopic}
+              className="text-xs text-stone-400 mt-0.5 truncate hover:text-stone-600 transition text-left"
+            >
+              {convo.topic || "Add a topic"}
+            </button>
+          )}
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={invite}
