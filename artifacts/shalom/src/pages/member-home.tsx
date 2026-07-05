@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Plus, ArrowLeft, Clock, ShieldCheck, X } from "lucide-react";
+import { Plus, ArrowLeft, Clock, ShieldCheck, X, Sun, Moon } from "lucide-react";
+import { applyTheme, initTheme } from "@/lib/theme";
 
 type Message = { id: string; sender: string; text: string; createdAt: string };
 type Conversation = {
@@ -23,7 +24,14 @@ export default function MemberHome({ email }: { email?: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dark, setDark] = useState(() => initTheme());
   const active = conversations.find((c) => c.id === activeId) || null;
+
+  const toggleTheme = () => {
+    const next = !dark;
+    applyTheme(next);
+    setDark(next);
+  };
 
   const loadConversations = useCallback(async () => {
     try {
@@ -117,29 +125,36 @@ export default function MemberHome({ email }: { email?: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100">
       {view === "home" ? (
         <div className="max-w-2xl mx-auto px-5 py-10">
-          <div className="flex items-center gap-2 mb-10">
-            <span className="text-2xl text-stone-800">ש</span>
-            <span className="text-xl font-light tracking-wide text-stone-800">Shalom</span>
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl text-stone-800 dark:text-stone-200">ש</span>
+              <span className="text-xl font-light tracking-wide text-stone-800 dark:text-stone-200">Shalom</span>
+            </div>
+            <button onClick={toggleTheme}
+              className="p-2 rounded-lg text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 hover:text-stone-600 dark:hover:text-stone-300 transition"
+              aria-label="Toggle theme">
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
           </div>
           <div className="flex items-end justify-between mb-8">
             <div>
               <h1 className="text-2xl font-light">Your conversations</h1>
-              <p className="text-stone-500 text-sm mt-1">Private, witnessed, and kept forever.</p>
+              <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Private, witnessed, and kept forever.</p>
             </div>
             <button onClick={() => setModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 transition">
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 dark:bg-stone-200 text-white dark:text-stone-900 text-sm font-medium hover:bg-stone-800 dark:hover:bg-stone-300 transition">
               <Plus size={16} /> Start a conversation
             </button>
           </div>
           {loading ? (
             <div className="text-center py-20 text-stone-400 text-sm">Loading…</div>
           ) : conversations.length === 0 ? (
-            <div className="text-center py-20 border border-dashed border-stone-200 rounded-2xl bg-white">
-              <div className="text-3xl text-stone-300 mb-3">ש</div>
-              <p className="text-stone-600 font-medium">No conversations yet</p>
+            <div className="text-center py-20 border border-dashed border-stone-200 dark:border-stone-700 rounded-2xl bg-white dark:bg-stone-900">
+              <div className="text-3xl text-stone-300 dark:text-stone-600 mb-3">ש</div>
+              <p className="text-stone-600 dark:text-stone-300 font-medium">No conversations yet</p>
               <p className="text-stone-400 text-sm mt-1 max-w-xs mx-auto">
                 Some conversations deserve a witness. Start one — Bridget will facilitate, and the record stays with both of you.
               </p>
@@ -148,16 +163,16 @@ export default function MemberHome({ email }: { email?: string }) {
             <div className="space-y-3">
               {conversations.map((c) => (
                 <button key={c.id} onClick={() => openConvo(c.id)}
-                  className="w-full text-left bg-white border border-stone-200 rounded-2xl p-4 hover:border-stone-300 hover:shadow-sm transition flex items-center justify-between">
+                  className="w-full text-left bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl p-4 hover:border-stone-300 dark:hover:border-stone-600 hover:shadow-sm transition flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium truncate">{c.partnerName}</span>
                       <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
                       {c.mode === "mediated" && (
-                        <span className="text-[10px] uppercase tracking-widest text-amber-600/80 border border-amber-200 rounded px-1">mediated</span>
+                        <span className="text-[10px] uppercase tracking-widest text-amber-600/80 dark:text-amber-400/80 border border-amber-200 dark:border-amber-900 rounded px-1">mediated</span>
                       )}
                     </div>
-                    <div className="text-sm text-stone-500 truncate">
+                    <div className="text-sm text-stone-500 dark:text-stone-400 truncate">
                       {c.topic || "No topic"}
                     </div>
                   </div>
@@ -252,8 +267,8 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)]">
-      <div className="bg-white border-b border-stone-200 px-4 py-2.5 flex items-center gap-3">
-        <button onClick={onBack} className="text-stone-400 hover:text-stone-700 transition"><ArrowLeft size={18} /></button>
+      <div className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-700 px-4 py-2.5 flex items-center gap-3">
+        <button onClick={onBack} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition"><ArrowLeft size={18} /></button>
         <div className="min-w-0">
           <div className="font-medium leading-none truncate">{convo.partnerName}</div>
           {editingTopic ? (
@@ -268,12 +283,12 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
               }}
               maxLength={200}
               placeholder="Add a topic"
-              className="text-xs text-stone-600 mt-0.5 px-1 -mx-1 rounded border border-stone-300 focus:outline-none focus:border-stone-400 bg-white w-full max-w-[240px]"
+              className="text-xs text-stone-600 dark:text-stone-300 mt-0.5 px-1 -mx-1 rounded border border-stone-300 dark:border-stone-600 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500 bg-white dark:bg-stone-800 w-full max-w-[240px]"
             />
           ) : (
             <button
               onClick={startEditTopic}
-              className="text-xs text-stone-400 mt-0.5 truncate hover:text-stone-600 transition text-left"
+              className="text-xs text-stone-400 mt-0.5 truncate hover:text-stone-600 dark:hover:text-stone-300 transition text-left"
             >
               {convo.topic || "Add a topic"}
             </button>
@@ -281,7 +296,7 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={invite}
-            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 transition">
             Invite
           </button>
           <span className="flex items-center gap-1 text-xs text-stone-400">
@@ -290,23 +305,23 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
         </div>
       </div>
       {(inviteUrl || inviteError || inviteAlreadyJoined) && (
-        <div className="bg-stone-50 border-b border-stone-200 px-4 py-2.5 flex items-center gap-2">
+        <div className="bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 px-4 py-2.5 flex items-center gap-2">
           {inviteUrl ? (
             <>
               <input readOnly value={inviteUrl}
-                className="flex-1 text-xs px-3 py-2 rounded-lg border border-stone-200 bg-white text-stone-700 focus:outline-none min-w-0" />
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 focus:outline-none min-w-0" />
               <button onClick={() => navigator.clipboard.writeText(inviteUrl)}
-                className="shrink-0 text-xs px-3 py-2 rounded-lg bg-stone-900 text-white hover:bg-stone-800 transition">
+                className="shrink-0 text-xs px-3 py-2 rounded-lg bg-stone-900 dark:bg-stone-200 text-white dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-stone-300 transition">
                 Copy
               </button>
             </>
           ) : inviteAlreadyJoined ? (
-            <p className="flex-1 text-xs text-stone-500">Partner already joined</p>
+            <p className="flex-1 text-xs text-stone-500 dark:text-stone-400">Partner already joined</p>
           ) : (
             <p className="flex-1 text-xs text-red-500">Couldn't create invite.</p>
           )}
           <button onClick={dismissInvite}
-            className="shrink-0 text-stone-400 hover:text-stone-700 transition" aria-label="Dismiss">
+            className="shrink-0 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition" aria-label="Dismiss">
             <X size={14} />
           </button>
         </div>
@@ -319,8 +334,8 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
           if (m.sender === "bridget") {
             return (
               <div key={m.id} className="flex justify-center"><div className="max-w-md text-center">
-                <div className="text-[10px] uppercase tracking-widest text-amber-600/70 mb-1">Bridget</div>
-                <div className="inline-block bg-amber-50 border border-amber-100 text-stone-700 text-sm rounded-2xl px-4 py-2 italic">{m.text}</div>
+                <div className="text-[10px] uppercase tracking-widest text-amber-600/70 dark:text-amber-400/70 mb-1">Bridget</div>
+                <div className="inline-block bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 text-stone-700 dark:text-stone-300 text-sm rounded-2xl px-4 py-2 italic">{m.text}</div>
               </div></div>
             );
           }
@@ -331,7 +346,7 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
                 <div className="text-[11px] text-stone-400 mb-1 px-1">
                   {isOwn ? "You" : <span title={m.sender}>{displayName(m.sender)}</span>} · {fmtTime(m.createdAt)}
                 </div>
-                <div className={`rounded-2xl px-4 py-2 text-sm ${isOwn ? "bg-stone-800 text-stone-50" : "bg-stone-100 text-stone-800"}`}>
+                <div className={`rounded-2xl px-4 py-2 text-sm ${isOwn ? "bg-stone-800 dark:bg-stone-200 text-stone-50 dark:text-stone-900" : "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-100"}`}>
                   {m.text}
                 </div>
               </div>
@@ -340,13 +355,13 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
         })}
         <div ref={endRef} />
       </div>
-      <div className="bg-white border-t border-stone-200 px-4 py-3">
+      <div className="bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-700 px-4 py-3">
         <div className="max-w-2xl mx-auto flex gap-2">
           <input value={draft} onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Speak…"
-            className="flex-1 px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-stone-400" />
+            className="flex-1 px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
           <button onClick={send} disabled={!draft.trim() || sending}
-            className="px-5 py-3 rounded-xl bg-stone-900 text-white font-medium disabled:opacity-30 hover:bg-stone-800 transition">Send</button>
+            className="px-5 py-3 rounded-xl bg-stone-900 dark:bg-stone-200 text-white dark:text-stone-900 font-medium disabled:opacity-30 hover:bg-stone-800 dark:hover:bg-stone-300 transition">Send</button>
         </div>
       </div>
     </div>
@@ -375,34 +390,34 @@ function NewModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 bg-stone-900/40 flex items-center justify-center p-4 z-30" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-light">Start a conversation</h2>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-700"><X size={18} /></button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"><X size={18} /></button>
         </div>
-        <p className="text-sm text-stone-500 mb-5">Invite the other person. Bridget will facilitate; the record belongs to you both.</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400 mb-5">Invite the other person. Bridget will facilitate; the record belongs to you both.</p>
         <div className="space-y-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Their name"
-            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-stone-400" />
+            className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Their email"
-            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-stone-400" />
+            className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
           <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="What's this about? (optional)"
-            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:border-stone-400" />
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 px-4 py-3">
+            className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
+          <div className="flex items-center justify-between rounded-xl border border-stone-200 dark:border-stone-700 px-4 py-3">
             <div>
-              <div className="text-sm font-medium text-stone-700">Bridget mediates</div>
+              <div className="text-sm font-medium text-stone-700 dark:text-stone-300">Bridget mediates</div>
               <div className="text-xs text-stone-400 mt-0.5">Bridget actively facilitates the exchange</div>
             </div>
             <button
               onClick={() => setMode((m) => m === "witness" ? "mediated" : "witness")}
-              className={`w-11 h-6 rounded-full transition-colors relative ${mode === "mediated" ? "bg-amber-500" : "bg-stone-200"}`}>
+              className={`w-11 h-6 rounded-full transition-colors relative ${mode === "mediated" ? "bg-amber-500" : "bg-stone-200 dark:bg-stone-700"}`}>
               <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mode === "mediated" ? "left-5" : "left-0.5"}`} />
             </button>
           </div>
         </div>
         <button onClick={handleCreate}
           disabled={!name.trim() || submitting}
-          className="w-full mt-5 py-3 rounded-xl bg-stone-900 text-white font-medium disabled:opacity-30 hover:bg-stone-800 transition">
+          className="w-full mt-5 py-3 rounded-xl bg-stone-900 dark:bg-stone-200 text-white dark:text-stone-900 font-medium disabled:opacity-30 hover:bg-stone-800 dark:hover:bg-stone-300 transition">
           {submitting ? "Creating…" : "Create & invite"}
         </button>
       </div>

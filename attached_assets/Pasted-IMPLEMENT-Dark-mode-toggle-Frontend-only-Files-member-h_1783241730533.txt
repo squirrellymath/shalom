@@ -1,0 +1,28 @@
+IMPLEMENT: Dark mode toggle. Frontend only. Files: member-home.tsx, not-found.tsx, App.tsx (toggle mount), plus a tiny new lib/theme.ts.
+1. Theme mechanism — lib/theme.ts:
+tsexport function applyTheme(dark: boolean) {
+  document.documentElement.classList.toggle("dark", dark);
+  localStorage.setItem("shalom-theme", dark ? "dark" : "light");
+}
+export function initTheme(): boolean {
+  const stored = localStorage.getItem("shalom-theme");
+  const dark = stored ? stored === "dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.classList.toggle("dark", dark);
+  return dark;
+}
+Call initTheme() in main.tsx before render (prevents flash).
+2. Toggle UI: small sun/moon button in the MemberHome header (next to Log out), using useState seeded from initTheme's result via a shared read, calling applyTheme on click. Also add the same toggle to ConvoView's header or keep it only on the list header — your judgment, one placement is enough.
+3. Dark variants — member-home.tsx: add dark: variants to every color literal. Mapping to apply consistently:
+
+bg-white → dark:bg-stone-900; page background bg-stone-50 → dark:bg-stone-950
+text-stone-900/800/700 → dark:text-stone-100/200/300; text-stone-600/500/400 → dark:text-stone-400 (readable, not inverted precisely)
+border-stone-200/300 → dark:border-stone-700
+Own-message bubble bg-stone-800 text-stone-50 → dark:bg-stone-200 dark:text-stone-900 (invert so it still contrasts)
+Partner bubble bg-stone-100 text-stone-800 → dark:bg-stone-800 dark:text-stone-100
+Bridget amber block: bg-amber-50 border-amber-100 → dark:bg-amber-950 dark:border-amber-900, text-amber-600/70 → dark:text-amber-400/70; keep body text readable (dark:text-stone-300)
+emerald-500 and red-500 fine as-is; hover states get sensible dark equivalents (hover:bg-stone-50 → dark:hover:bg-stone-800)
+
+4. not-found.tsx: replace the gray-* literals with the same stone scheme + dark variants.
+5. Don't touch index.css variables, App.tsx landing styles, or shadcn components.
+6. Finish: typecheck, rebuild frontend, stage source + new assets + index.html, drop superseded assets, commit "Add light/dark mode toggle to member app", push origin main.
