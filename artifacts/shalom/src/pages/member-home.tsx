@@ -9,6 +9,10 @@ type Conversation = {
 
 async function apiFetch(path: string, opts?: RequestInit) {
   const res = await fetch(path, { credentials: "include", ...opts });
+  if (res.status === 401) {
+    window.location.href = "/";
+    throw new Error("401");
+  }
   if (!res.ok) throw new Error(`${res.status}`);
   return res.json();
 }
@@ -30,6 +34,35 @@ export default function MemberHome({ email }: { email?: string }) {
   }, []);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  useEffect(() => {
+    if (view !== "home") return;
+    const interval = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const data: Conversation[] = await apiFetch("/conversations");
+        setConversations((prev) =>
+          data.map((c) => {
+            const existing = prev.find((p) => p.id === c.id);
+            return existing?.messages ? { ...c, messages: existing.messages } : c;
+          })
+        );
+      } catch {}
+    }, 10_000);
+    return () => clearInterval(interval);
+  }, [view]);
+
+  useEffect(() => {
+    if (view !== "conversation" || !activeId) return;
+    const interval = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const messages = await apiFetch(`/conversations/${activeId}/messages`);
+        setConversations((p) => p.map((c) => c.id === activeId ? { ...c, messages } : c));
+      } catch {}
+    }, 4_000);
+    return () => clearInterval(interval);
+  }, [activeId, view]);
 
   const create = async (name: string, em: string, topic: string, mode: "witness" | "mediated") => {
     try {
@@ -65,13 +98,10 @@ export default function MemberHome({ email }: { email?: string }) {
   const openConvo = async (id: string) => {
     setActiveId(id);
     setView("conversation");
-    const convo = conversations.find((c) => c.id === id);
-    if (convo && !convo.messages) {
-      try {
-        const messages = await apiFetch(`/conversations/${id}/messages`);
-        setConversations((p) => p.map((c) => c.id === id ? { ...c, messages } : c));
-      } catch {}
-    }
+    try {
+      const messages = await apiFetch(`/conversations/${id}/messages`);
+      setConversations((p) => p.map((c) => c.id === id ? { ...c, messages } : c));
+    } catch {}
   };
 
   return (
