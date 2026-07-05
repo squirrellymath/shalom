@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { eq, max, desc } from "drizzle-orm";
 import { db, messagesTable } from "@workspace/db";
+import { encryptText, decryptText } from "./crypto";
 
 function computeHash(fields: {
   prevHash: string;
@@ -56,10 +57,10 @@ export async function insertMessage(
 
         const [msg] = await tx
           .insert(messagesTable)
-          .values({ conversationId, sender, text, seq, prevHash, hash, createdAt })
+          .values({ conversationId, sender, text: encryptText(text), seq, prevHash, hash, createdAt })
           .returning();
 
-        return msg;
+        return { ...msg, text };
       });
     } catch (err: any) {
       lastErr = err;
@@ -88,12 +89,19 @@ export async function verifyChain(
       return { valid: false, brokenAtSeq: m.seq };
     }
 
+    let plainText: string;
+    try {
+      plainText = decryptText(m.text);
+    } catch {
+      return { valid: false, brokenAtSeq: m.seq };
+    }
+
     const expectedHash = computeHash({
       prevHash: m.prevHash,
       conversationId: m.conversationId,
       seq: m.seq,
       sender: m.sender,
-      text: m.text,
+      text: plainText,
       createdAt: m.createdAt,
     });
     if (m.hash !== expectedHash) {

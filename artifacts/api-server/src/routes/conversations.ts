@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { insertMessage, verifyChain } from "../lib/message-chain";
+import { decryptText } from "../lib/crypto";
 
 const router: IRouter = Router();
 
@@ -121,7 +122,7 @@ router.get("/conversations/:id/messages", async (req, res): Promise<void> => {
     .where(eq(messagesTable.conversationId, id))
     .orderBy(messagesTable.seq);
 
-  res.json(messages);
+  res.json(messages.map((m) => ({ ...m, text: decryptText(m.text) })));
 });
 
 router.get("/conversations/:id/messages/verify", async (req, res): Promise<void> => {
@@ -186,7 +187,7 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
 
       const transcript = recent
         .slice(-15)
-        .map((m) => `${m.sender === "bridget" ? "Bridget" : m.sender}: ${m.text}`)
+        .map((m) => `${m.sender === "bridget" ? "Bridget" : m.sender}: ${decryptText(m.text)}`)
         .join("\n");
 
       const aiRes = await anthropic.messages.create({

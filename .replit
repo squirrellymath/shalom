@@ -30,3 +30,8 @@ externalPort = 8081
 [[ports]]
 localPort = 25899
 externalPort = 80
+
+[userenv]
+
+[userenv.development]
+MESSAGE_ENC_KEY = "yKWrnAjxD06o6jIuPlqeIBO45BLUWN2v4WvAYob88kI="
