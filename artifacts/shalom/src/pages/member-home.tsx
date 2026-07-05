@@ -257,7 +257,7 @@ function ConvoView({ convo, onBack, addMsg, email }: {
             <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[75%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                 <div className="text-[11px] text-stone-400 mb-1 px-1">
-                  {isOwn ? "You" : m.sender} · {fmtTime(m.createdAt)}
+                  {isOwn ? "You" : <span title={m.sender}>{displayName(m.sender)}</span>} · {fmtTime(m.createdAt)}
                 </div>
                 <div className={`rounded-2xl px-4 py-2 text-sm ${isOwn ? "bg-stone-800 text-stone-50" : "bg-stone-100 text-stone-800"}`}>
                   {m.text}
@@ -338,6 +338,10 @@ function NewModal({ onClose, onCreate }: {
   );
 }
 
+function displayName(sender: string) {
+  const local = sender.split("@")[0] || sender;
+  return local.charAt(0).toUpperCase() + local.slice(1);
+}
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
