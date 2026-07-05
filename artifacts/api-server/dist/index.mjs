@@ -62485,6 +62485,29 @@ router4.post("/conversations", async (req, res) => {
   const introMsg = await insertMessage(convo.id, "bridget", introText);
   res.status(201).json({ ...convo, messages: [introMsg] });
 });
+var UpdateTopicBody = external_exports.object({
+  topic: external_exports.string().trim().max(200)
+});
+router4.patch("/conversations/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const parsed = UpdateTopicBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const topic = parsed.data.topic.length > 0 ? parsed.data.topic : null;
+  const [convo] = await db.update(conversationsTable).set({ topic }).where(and(
+    eq(conversationsTable.id, id),
+    or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))
+  )).returning();
+  if (!convo) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.json(convo);
+});
 router4.get("/conversations/:id/messages", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
