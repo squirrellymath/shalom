@@ -72,7 +72,7 @@ export default function MemberHome({ email }: { email?: string }) {
     return () => clearInterval(interval);
   }, [activeId, view]);
 
-  const create = async (name: string, em: string, topic: string, mode: "witness" | "mediated") => {
+  const create = async (name: string, em: string, topic: string, mode: "witness" | "mediated"): Promise<boolean> => {
     try {
       const convo = await apiFetch("/conversations", {
         method: "POST",
@@ -83,7 +83,10 @@ export default function MemberHome({ email }: { email?: string }) {
       setModal(false);
       setActiveId(convo.id);
       setView("conversation");
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const addMsg = async (id: string, text: string): Promise<Message | null> => {
@@ -370,19 +373,24 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
 
 function NewModal({ onClose, onCreate }: {
   onClose: () => void;
-  onCreate: (name: string, email: string, topic: string, mode: "witness" | "mediated") => Promise<void>;
+  onCreate: (name: string, email: string, topic: string, mode: "witness" | "mediated") => Promise<boolean>;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [topic, setTopic] = useState("");
   const [mode, setMode] = useState<"witness" | "mediated">("witness");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(false);
+
+  const clearError = () => setError(false);
 
   const handleCreate = async () => {
     if (!name.trim() || submitting) return;
     setSubmitting(true);
+    setError(false);
     try {
-      await onCreate(name.trim(), email.trim(), topic.trim(), mode);
+      const ok = await onCreate(name.trim(), email.trim(), topic.trim(), mode);
+      if (!ok) setError(true);
     } finally {
       setSubmitting(false);
     }
@@ -397,11 +405,11 @@ function NewModal({ onClose, onCreate }: {
         </div>
         <p className="text-sm text-stone-500 dark:text-stone-400 mb-5">Invite the other person. Bridget will facilitate; the record belongs to you both.</p>
         <div className="space-y-3">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Their name"
+          <input value={name} onChange={(e) => { setName(e.target.value); clearError(); }} placeholder="Their name"
             className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Their email"
+          <input value={email} onChange={(e) => { setEmail(e.target.value); clearError(); }} placeholder="Their email"
             className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
-          <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="What's this about? (optional)"
+          <input value={topic} onChange={(e) => { setTopic(e.target.value); clearError(); }} placeholder="What's this about? (optional)"
             className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
           <div className="flex items-center justify-between rounded-xl border border-stone-200 dark:border-stone-700 px-4 py-3">
             <div>
@@ -409,12 +417,15 @@ function NewModal({ onClose, onCreate }: {
               <div className="text-xs text-stone-400 mt-0.5">Bridget actively facilitates the exchange</div>
             </div>
             <button
-              onClick={() => setMode((m) => m === "witness" ? "mediated" : "witness")}
+              onClick={() => { setMode((m) => m === "witness" ? "mediated" : "witness"); clearError(); }}
               className={`w-11 h-6 rounded-full transition-colors relative ${mode === "mediated" ? "bg-amber-500" : "bg-stone-200 dark:bg-stone-700"}`}>
               <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mode === "mediated" ? "left-5" : "left-0.5"}`} />
             </button>
           </div>
         </div>
+        {error && (
+          <p className="text-sm text-red-500 mt-3">Couldn't create the conversation — try again.</p>
+        )}
         <button onClick={handleCreate}
           disabled={!name.trim() || submitting}
           className="w-full mt-5 py-3 rounded-xl bg-stone-900 dark:bg-stone-200 text-white dark:text-stone-900 font-medium disabled:opacity-30 hover:bg-stone-800 dark:hover:bg-stone-300 transition">
