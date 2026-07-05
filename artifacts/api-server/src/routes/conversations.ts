@@ -233,6 +233,11 @@ router.post("/conversations/:id/invite", async (req, res): Promise<void> => {
     return;
   }
 
+  if (convo.partnerUserId) {
+    res.status(409).json({ error: "already_joined" });
+    return;
+  }
+
   const token = crypto.randomBytes(32).toString("hex");
 
   await db.insert(invitesTable).values({

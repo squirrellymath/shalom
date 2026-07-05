@@ -188,6 +188,7 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
   const [sending, setSending] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState(false);
+  const [inviteAlreadyJoined, setInviteAlreadyJoined] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
   const [topicDraft, setTopicDraft] = useState(convo.topic || "");
   const endRef = useRef<HTMLDivElement>(null);
@@ -215,18 +216,26 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
 
   const invite = async () => {
     setInviteError(false);
+    setInviteAlreadyJoined(false);
     setInviteUrl(null);
     try {
       const res = await fetch(`/conversations/${convo.id}/invite`, {
         method: "POST",
         credentials: "include",
       });
+      if (res.status === 409) { setInviteAlreadyJoined(true); return; }
       if (!res.ok) { setInviteError(true); return; }
       const data = await res.json();
       setInviteUrl(data.inviteUrl);
     } catch {
       setInviteError(true);
     }
+  };
+
+  const dismissInvite = () => {
+    setInviteUrl(null);
+    setInviteError(false);
+    setInviteAlreadyJoined(false);
   };
   const messages = convo.messages || [];
 
@@ -280,7 +289,7 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
           </span>
         </div>
       </div>
-      {(inviteUrl || inviteError) && (
+      {(inviteUrl || inviteError || inviteAlreadyJoined) && (
         <div className="bg-stone-50 border-b border-stone-200 px-4 py-2.5 flex items-center gap-2">
           {inviteUrl ? (
             <>
@@ -291,9 +300,15 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
                 Copy
               </button>
             </>
+          ) : inviteAlreadyJoined ? (
+            <p className="flex-1 text-xs text-stone-500">Partner already joined</p>
           ) : (
-            <p className="text-xs text-red-500">Couldn't create invite.</p>
+            <p className="flex-1 text-xs text-red-500">Couldn't create invite.</p>
           )}
+          <button onClick={dismissInvite}
+            className="shrink-0 text-stone-400 hover:text-stone-700 transition" aria-label="Dismiss">
+            <X size={14} />
+          </button>
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl w-full mx-auto">

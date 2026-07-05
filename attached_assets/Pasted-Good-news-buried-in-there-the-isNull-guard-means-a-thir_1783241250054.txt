@@ -1,0 +1,26 @@
+Good news buried in there: the isNull guard means a third person cannot overwrite or read your conversation — the core privacy promise holds. What's actually broken:
+
+Owner self-join hole (worst): if the owner clicks their own link before a partner joins, they occupy the partner slot themselves — bricking the conversation for the real invitee.
+Tokens never die on failure: a losing join attempt is never marked accepted, so the link stays valid forever and gives no feedback ("silently logged in, redirected home").
+Unlimited invite minting for already-full conversations.
+UI: no way to dismiss the invite banner.
+
+One prompt fixes all four:
+
+IMPLEMENT: Invite hardening + banner dismiss. Files: artifacts/api-server/src/routes/conversations.ts, artifacts/api-server/src/routes/auth.ts, artifacts/shalom/src/pages/member-home.tsx. No schema changes.
+1. Invite minting (conversations.ts, POST /conversations/:id/invite): after the owner-scoped fetch, if convo.partnerUserId is already set, return 409 { error: "already_joined" } instead of minting.
+2. Join path (auth.ts, SSO callback), inside the pendingToken block:
+
+Before the update: fetch the conversation for invite.conversationId. If convo.ownerUserId === data.user_id, skip the join (do not write partnerUserId) and redirect to /?invite_error=own_invite.
+If convo.partnerUserId is already set (and ≠ this user), mark the invite status: "expired" and redirect to /?invite_error=already_joined.
+If convo.partnerUserId === data.user_id (partner re-clicking their own consumed link path), just redirect to /?joined=<id>.
+Keep the existing isNull guard on the UPDATE as the final race protection; if the UPDATE returns 0 rows despite the checks (race), treat as already_joined above.
+Keep the outer try/catch behavior — join failures still never break login.
+
+3. Frontend (member-home.tsx, ConvoView):
+
+Add an ✕ dismiss button to the invite banner that sets inviteUrl to null and inviteError to false.
+Handle the 409 from invite minting: show "Partner already joined" in the banner instead of "Couldn't create invite."
+In App.tsx or wherever query params are read on load: if invite_error is present, it's fine to ignore for now (no new UI required) — just don't break.
+
+4. Finish: typecheck; rebuild BOTH bundles — api-server (node ./build.mjs, grep dist for one of the new redirects e.g. own_invite) and frontend (PORT=25899 BASE_PATH=/ pnpm --filter @workspace/shalom run build); stage api-server dist + source, frontend source + new assets + index.html, drop superseded assets from cache; commit "Harden invite join path; add banner dismiss"; push origin main.

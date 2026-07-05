@@ -32,6 +32,31 @@ router.get("/auth/sso/callback", async (req, res) => {
           .where(eq(invitesTable.token, pendingToken));
 
         if (invite && invite.status === "pending") {
+          const [convo] = await db
+            .select()
+            .from(conversationsTable)
+            .where(eq(conversationsTable.id, invite.conversationId));
+
+          if (convo && convo.ownerUserId === data.user_id) {
+            req.session.save(() => res.redirect("/?invite_error=own_invite"));
+            return;
+          }
+
+          if (convo && convo.partnerUserId && convo.partnerUserId !== data.user_id) {
+            await db
+              .update(invitesTable)
+              .set({ status: "expired" })
+              .where(eq(invitesTable.id, invite.id));
+
+            req.session.save(() => res.redirect("/?invite_error=already_joined"));
+            return;
+          }
+
+          if (convo && convo.partnerUserId === data.user_id) {
+            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            return;
+          }
+
           const [updated] = await db
             .update(conversationsTable)
             .set({ partnerUserId: data.user_id })
@@ -52,6 +77,14 @@ router.get("/auth/sso/callback", async (req, res) => {
             req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
             return;
           }
+
+          await db
+            .update(invitesTable)
+            .set({ status: "expired" })
+            .where(eq(invitesTable.id, invite.id));
+
+          req.session.save(() => res.redirect("/?invite_error=already_joined"));
+          return;
         }
       } catch {
         // join failure never breaks normal login

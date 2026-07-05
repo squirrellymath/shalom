@@ -57469,6 +57469,20 @@ router2.get("/auth/sso/callback", async (req, res) => {
       try {
         const [invite] = await db.select().from(invitesTable).where(eq(invitesTable.token, pendingToken));
         if (invite && invite.status === "pending") {
+          const [convo] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, invite.conversationId));
+          if (convo && convo.ownerUserId === data.user_id) {
+            req.session.save(() => res.redirect("/?invite_error=own_invite"));
+            return;
+          }
+          if (convo && convo.partnerUserId && convo.partnerUserId !== data.user_id) {
+            await db.update(invitesTable).set({ status: "expired" }).where(eq(invitesTable.id, invite.id));
+            req.session.save(() => res.redirect("/?invite_error=already_joined"));
+            return;
+          }
+          if (convo && convo.partnerUserId === data.user_id) {
+            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            return;
+          }
           const [updated] = await db.update(conversationsTable).set({ partnerUserId: data.user_id }).where(
             and(
               eq(conversationsTable.id, invite.conversationId),
@@ -57480,6 +57494,9 @@ router2.get("/auth/sso/callback", async (req, res) => {
             req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
             return;
           }
+          await db.update(invitesTable).set({ status: "expired" }).where(eq(invitesTable.id, invite.id));
+          req.session.save(() => res.redirect("/?invite_error=already_joined"));
+          return;
         }
       } catch {
       }
@@ -62588,6 +62605,10 @@ router4.post("/conversations/:id/invite", async (req, res) => {
   const [convo] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  if (convo.partnerUserId) {
+    res.status(409).json({ error: "already_joined" });
     return;
   }
   const token = crypto2.randomBytes(32).toString("hex");
