@@ -57787,7 +57787,37 @@ var health_default = router;
 
 // src/routes/auth.ts
 var import_express2 = __toESM(require_express2(), 1);
+
+// src/lib/logger.ts
+var import_pino = __toESM(require_pino(), 1);
+var isProduction = process.env.NODE_ENV === "production";
+var logger = (0, import_pino.default)({
+  level: process.env.LOG_LEVEL ?? "info",
+  redact: [
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "res.headers['set-cookie']"
+  ],
+  ...isProduction ? {} : {
+    transport: {
+      target: "pino-pretty",
+      options: { colorize: true }
+    }
+  }
+});
+
+// src/routes/auth.ts
 var router2 = (0, import_express2.Router)();
+function saveSession(req, res, onSuccess) {
+  req.session.save((err) => {
+    if (err) {
+      logger.error({ err }, "Session save failed");
+      res.redirect("/?auth_error=session_save_failed");
+      return;
+    }
+    onSuccess();
+  });
+}
 router2.get("/auth/sso/callback", async (req, res) => {
   const token = typeof req.query.sso_token === "string" ? req.query.sso_token : typeof req.query.token === "string" ? req.query.token : null;
   if (!token) return res.redirect("/?auth_error=missing_token");
@@ -57811,16 +57841,16 @@ router2.get("/auth/sso/callback", async (req, res) => {
         if (invite && invite.status === "pending") {
           const [convo] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, invite.conversationId));
           if (convo && convo.ownerUserId === data.user_id) {
-            req.session.save(() => res.redirect("/?invite_error=own_invite"));
+            saveSession(req, res, () => res.redirect("/?invite_error=own_invite"));
             return;
           }
           if (convo && convo.partnerUserId && convo.partnerUserId !== data.user_id) {
             await db.update(invitesTable).set({ status: "expired" }).where(eq(invitesTable.id, invite.id));
-            req.session.save(() => res.redirect("/?invite_error=already_joined"));
+            saveSession(req, res, () => res.redirect("/?invite_error=already_joined"));
             return;
           }
           if (convo && convo.partnerUserId === data.user_id) {
-            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            saveSession(req, res, () => res.redirect(`/?joined=${invite.conversationId}`));
             return;
           }
           const [updated] = await db.update(conversationsTable).set({ partnerUserId: data.user_id }).where(
@@ -57831,17 +57861,17 @@ router2.get("/auth/sso/callback", async (req, res) => {
           ).returning();
           if (updated) {
             await db.update(invitesTable).set({ status: "accepted", acceptedAt: /* @__PURE__ */ new Date() }).where(eq(invitesTable.id, invite.id));
-            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            saveSession(req, res, () => res.redirect(`/?joined=${invite.conversationId}`));
             return;
           }
           await db.update(invitesTable).set({ status: "expired" }).where(eq(invitesTable.id, invite.id));
-          req.session.save(() => res.redirect("/?invite_error=already_joined"));
+          saveSession(req, res, () => res.redirect("/?invite_error=already_joined"));
           return;
         }
       } catch {
       }
     }
-    req.session.save(() => res.redirect("/"));
+    saveSession(req, res, () => res.redirect("/"));
   } catch (err) {
     res.redirect("/?auth_error=verify_failed");
   }
@@ -63039,24 +63069,6 @@ router6.use(conversations_default);
 router6.use(invite_default);
 var routes_default = router6;
 
-// src/lib/logger.ts
-var import_pino = __toESM(require_pino(), 1);
-var isProduction = process.env.NODE_ENV === "production";
-var logger = (0, import_pino.default)({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']"
-  ],
-  ...isProduction ? {} : {
-    transport: {
-      target: "pino-pretty",
-      options: { colorize: true }
-    }
-  }
-});
-
 // src/app.ts
 var app = (0, import_express7.default)();
 app.set("trust proxy", 1);
@@ -63084,7 +63096,12 @@ app.use(import_express7.default.json());
 app.use(import_express7.default.urlencoded({ extended: true }));
 var PgSession2 = (0, import_connect_pg_simple.default)(import_express_session.default);
 app.use((0, import_express_session.default)({
-  store: new PgSession2({ pool, tableName: "user_sessions", createTableIfMissing: true }),
+  store: new PgSession2({
+    pool,
+    tableName: "user_sessions",
+    createTableIfMissing: true,
+    errorLog: (...args) => logger.error({ args }, "Session store error")
+  }),
   secret: process.env["SESSION_SECRET"] ?? "shalom-secret",
   resave: false,
   saveUninitialized: false,

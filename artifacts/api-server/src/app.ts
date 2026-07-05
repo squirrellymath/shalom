@@ -36,7 +36,12 @@ app.use(express.urlencoded({ extended: true }));
 const PgSession = connectPgSimple(session);
 
 app.use(session({
-  store: new PgSession({ pool, tableName: "user_sessions", createTableIfMissing: true }),
+  store: new PgSession({
+    pool,
+    tableName: "user_sessions",
+    createTableIfMissing: true,
+    errorLog: (...args: unknown[]) => logger.error({ args }, "Session store error"),
+  }),
   secret: process.env["SESSION_SECRET"] ?? "shalom-secret",
   resave: false,
   saveUninitialized: false,

@@ -1,8 +1,20 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { eq, and, isNull } from "drizzle-orm";
 import { db, invitesTable, conversationsTable } from "@workspace/db";
+import { logger } from "../lib/logger";
 
 const router = Router();
+
+function saveSession(req: Request, res: Response, onSuccess: () => void) {
+  req.session.save((err) => {
+    if (err) {
+      logger.error({ err }, "Session save failed");
+      res.redirect("/?auth_error=session_save_failed");
+      return;
+    }
+    onSuccess();
+  });
+}
 
 router.get("/auth/sso/callback", async (req, res) => {
   const token = typeof req.query.sso_token === "string" ? req.query.sso_token :
@@ -38,7 +50,7 @@ router.get("/auth/sso/callback", async (req, res) => {
             .where(eq(conversationsTable.id, invite.conversationId));
 
           if (convo && convo.ownerUserId === data.user_id) {
-            req.session.save(() => res.redirect("/?invite_error=own_invite"));
+            saveSession(req, res, () => res.redirect("/?invite_error=own_invite"));
             return;
           }
 
@@ -48,12 +60,12 @@ router.get("/auth/sso/callback", async (req, res) => {
               .set({ status: "expired" })
               .where(eq(invitesTable.id, invite.id));
 
-            req.session.save(() => res.redirect("/?invite_error=already_joined"));
+            saveSession(req, res, () => res.redirect("/?invite_error=already_joined"));
             return;
           }
 
           if (convo && convo.partnerUserId === data.user_id) {
-            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            saveSession(req, res, () => res.redirect(`/?joined=${invite.conversationId}`));
             return;
           }
 
@@ -74,7 +86,7 @@ router.get("/auth/sso/callback", async (req, res) => {
               .set({ status: "accepted", acceptedAt: new Date() })
               .where(eq(invitesTable.id, invite.id));
 
-            req.session.save(() => res.redirect(`/?joined=${invite.conversationId}`));
+            saveSession(req, res, () => res.redirect(`/?joined=${invite.conversationId}`));
             return;
           }
 
@@ -83,7 +95,7 @@ router.get("/auth/sso/callback", async (req, res) => {
             .set({ status: "expired" })
             .where(eq(invitesTable.id, invite.id));
 
-          req.session.save(() => res.redirect("/?invite_error=already_joined"));
+          saveSession(req, res, () => res.redirect("/?invite_error=already_joined"));
           return;
         }
       } catch {
@@ -91,7 +103,7 @@ router.get("/auth/sso/callback", async (req, res) => {
       }
     }
 
-    req.session.save(() => res.redirect("/"));
+    saveSession(req, res, () => res.redirect("/"));
   } catch (err) {
     res.redirect("/?auth_error=verify_failed");
   }
