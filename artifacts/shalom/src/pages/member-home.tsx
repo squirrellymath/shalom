@@ -158,17 +158,18 @@ export default function MemberHome({ email }: { email?: string }) {
           )}
         </div>
       ) : active ? (
-        <ConvoView convo={active} onBack={() => { setView("home"); setActiveId(null); }} addMsg={addMsg} />
+        <ConvoView convo={active} onBack={() => { setView("home"); setActiveId(null); }} addMsg={addMsg} email={email} />
       ) : null}
       {modal && <NewModal onClose={() => setModal(false)} onCreate={create} />}
     </div>
   );
 }
 
-function ConvoView({ convo, onBack, addMsg }: {
+function ConvoView({ convo, onBack, addMsg, email }: {
   convo: Conversation;
   onBack: () => void;
   addMsg: (id: string, text: string) => Promise<Message | null>;
+  email?: string;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -242,17 +243,29 @@ function ConvoView({ convo, onBack, addMsg }: {
         {messages.length === 0 && (
           <div className="text-center text-stone-400 text-sm py-8">Loading messages…</div>
         )}
-        {messages.map((m) => m.sender === "bridget" ? (
-          <div key={m.id} className="flex justify-center"><div className="max-w-md text-center">
-            <div className="text-[10px] uppercase tracking-widest text-amber-600/70 mb-1">Bridget</div>
-            <div className="inline-block bg-amber-50 border border-amber-100 text-stone-700 text-sm rounded-2xl px-4 py-2 italic">{m.text}</div>
-          </div></div>
-        ) : (
-          <div key={m.id} className="flex justify-end"><div className="max-w-[75%] flex flex-col items-end">
-            <div className="text-[11px] text-stone-400 mb-1 px-1">You · {fmtTime(m.createdAt)}</div>
-            <div className="rounded-2xl px-4 py-2 text-sm bg-stone-800 text-stone-50">{m.text}</div>
-          </div></div>
-        ))}
+        {messages.map((m) => {
+          if (m.sender === "bridget") {
+            return (
+              <div key={m.id} className="flex justify-center"><div className="max-w-md text-center">
+                <div className="text-[10px] uppercase tracking-widest text-amber-600/70 mb-1">Bridget</div>
+                <div className="inline-block bg-amber-50 border border-amber-100 text-stone-700 text-sm rounded-2xl px-4 py-2 italic">{m.text}</div>
+              </div></div>
+            );
+          }
+          const isOwn = !!email && m.sender === email;
+          return (
+            <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[75%] flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                <div className="text-[11px] text-stone-400 mb-1 px-1">
+                  {isOwn ? "You" : m.sender} · {fmtTime(m.createdAt)}
+                </div>
+                <div className={`rounded-2xl px-4 py-2 text-sm ${isOwn ? "bg-stone-800 text-stone-50" : "bg-stone-100 text-stone-800"}`}>
+                  {m.text}
+                </div>
+              </div>
+            </div>
+          );
+        })}
         <div ref={endRef} />
       </div>
       <div className="bg-white border-t border-stone-200 px-4 py-3">
