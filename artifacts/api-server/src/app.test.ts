@@ -1,5 +1,6 @@
 import request from "supertest";
 import crypto from "node:crypto";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const anthropicCreate = vi.hoisted(() => vi.fn());
@@ -72,6 +73,27 @@ beforeEach(async () => {
 });
 
 describe("SSO callback", () => {
+  it("uses the validated Bridget callback contract", async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify(validSsoResponse), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await request(app).get("/auth/sso/callback?token=contract-token").expect(302);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://bridget.fyi/auth/sso/validate",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ token: "contract-token" }),
+      }),
+    );
+  });
+
   it("rejects malformed response fields and false valid flags", async () => {
     mockSso({ valid: false, user_id: "owner-1", email: "owner@example.com", role: "member" });
     await request(app)
@@ -134,6 +156,19 @@ describe("access gate and conversation creation", () => {
 });
 
 describe("invites", () => {
+  it("allows only the conversation owner to mint an invite", async () => {
+    const owner = await signedIn();
+    const convo = await owner.post("/conversations").send({ partnerName: "Partner" }).expect(201);
+    const partner = await signedIn({
+      ...validSsoResponse,
+      user_id: "partner-user",
+      email: "partner@example.com",
+    });
+
+    await partner.post(`/conversations/${convo.body.id}/invite`).expect(404);
+    await owner.post(`/conversations/${convo.body.id}/invite`).expect(201);
+  });
+
   it("expires older pending invites when creating a replacement", async () => {
     const agent = await signedIn();
     const convo = await agent.post("/conversations").send({ partnerName: "Partner" }).expect(201);
@@ -160,6 +195,38 @@ describe("invites", () => {
       .expect("Location", "/?invite_error=wrong_account");
     const [row] = await db.select().from(invitesTable);
     expect(row.status).toBe("pending");
+  });
+
+  it("expires an expired invite but preserves legacy null-expiry invites", async () => {
+    const owner = await signedIn();
+    const convo = await owner.post("/conversations").send({ partnerName: "Partner" }).expect(201);
+    const expiredToken = "expired-invite-token";
+    const legacyToken = "legacy-invite-token";
+    await db.insert(invitesTable).values([
+      {
+        id: crypto.randomUUID(),
+        token: expiredToken,
+        conversationId: convo.body.id,
+        status: "pending",
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+      {
+        id: crypto.randomUUID(),
+        token: legacyToken,
+        conversationId: convo.body.id,
+        status: "pending",
+        expiresAt: null,
+      },
+    ]);
+
+    await request(app)
+      .get(`/invite/${expiredToken}`)
+      .expect(302)
+      .expect("Location", "/?invite_error=expired");
+    await request(app).get(`/invite/${legacyToken}`).expect(302);
+
+    const [expired] = await db.select().from(invitesTable).where(eq(invitesTable.token, expiredToken));
+    expect(expired.status).toBe("expired");
   });
 });
 
