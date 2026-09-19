@@ -10,7 +10,11 @@
   },
   "private": true,
   "devDependencies": {
+    "@types/supertest": "^6.0.3",
+    "pg-mem": "^3.0.5",
     "prettier": "^3.8.3",
-    "typescript": "~5.9.3"
+    "supertest": "^7.1.4",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   }
 }
