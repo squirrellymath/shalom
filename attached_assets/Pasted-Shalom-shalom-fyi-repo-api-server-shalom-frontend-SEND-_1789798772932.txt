@@ -1,0 +1,32 @@
+Shalom (shalom.fyi repo -- api-server + shalom frontend)
+
+SEND-BACK on the audit-fix run. Do NOT push, do NOT deploy. Fix and prove the gaps below; change nothing else.
+
+A. Evidence per item. The fix brief had 18 numbered items. For each item, give: the commits that carry it, files changed (path:line), the before-reproduction output, the after-reproduction output, and the test name. The current report has 8 tests for 18 items. Add a test for every item that has none, or state why an item can't be tested and what proves it instead. Close with a table: item | commit(s) | test | before shown | after shown.
+
+B. Invite permission change. The access table now says POST /conversations/:id/invite allows "owner or participant." The brief kept that route owner-only. Revert it to owner-only, and show a partner getting 404 on it.
+
+C. Invite race (item 7). pg-mem does not enforce row locks, so the suite cannot prove the race is fixed. Paste the acceptance code showing the single transaction and the FOR UPDATE lock. Then run two concurrent acceptances of one invite against the real development Postgres (a script, not pg-mem). Paste the resulting conversation row and invite row: exactly one partner, and an invite status consistent with that outcome.
+
+D. Draft restore (item 14). Show that a failed send puts the typed text back in the input box, with the test or scripted proof.
+
+E. Deploy configs (item 16).
+
+Build the root Dockerfile image locally and run the container. Paste /healthz returning JSON and / returning the frontend HTML, both from the container. If Docker is unavailable in the workspace, say so plainly; dev-server results do not substitute.
+The inventory omits artifacts/api-server/Dockerfile and railway-package.json. Report each one: retained, updated or removed, and why.
+Paste the full artifacts/shalom/railway.json. Show that its start command matches a file path that exists inside the Dockerfile image.
+State the Node version now written in replit.md.
+
+F. Migration safety on production. Production data has never been checked against the new constraints.
+
+Wrap the entire migration in one transaction.
+Before each CHECK constraint and the unique index, add a guard that counts violating rows and raises an exception naming the count. A dirty production row must then roll back the whole migration cleanly instead of applying it halfway.
+Paste the final SQL and show it running twice on the development database without error (idempotent).
+
+G. Deploy ordering. List every route that fails if the new code runs before the migration is applied (new columns, used_sso_tokens, expires_at), with the error each one would return.
+
+H. Production migration -- only after A through G pass. Using the production connection string (the public Railway proxy URL), first run read-only counts for every guarded condition in F and paste them. When all counts are zero, apply the migration and paste the output, then list the production tables and constraints to confirm. When any count is nonzero, or no production connection string is available in this workspace, stop and report; do not apply. Do not push.
+
+Report format: sections A through H, then one summary table: item | status (done / blocked) | evidence location.
+
+SESSION_SECRET still has to be set in Railway before deploy.
