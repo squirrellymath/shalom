@@ -1,3 +1,5 @@
+BEGIN;
+
 ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "client_request_id" uuid;
 ALTER TABLE "conversations" ADD COLUMN IF NOT EXISTS "partner_user_id" text;
 
@@ -31,7 +33,16 @@ CREATE TABLE IF NOT EXISTS "used_sso_tokens" (
 );
 
 DO $$
+DECLARE
+  violating_count bigint;
 BEGIN
+  SELECT count(*) INTO violating_count
+  FROM "conversations"
+  WHERE "mode" IS NULL OR "mode" NOT IN ('witness', 'mediated');
+  IF violating_count > 0 THEN
+    RAISE EXCEPTION 'conversations_mode_check guard found % violating rows', violating_count;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'conversations_mode_check'
   ) THEN
@@ -48,6 +59,43 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+DECLARE
+  violating_count bigint;
+BEGIN
+  SELECT count(*) INTO violating_count
+  FROM "invites"
+  WHERE "status" IS NULL OR "status" NOT IN ('pending', 'accepted', 'expired');
+  IF violating_count > 0 THEN
+    RAISE EXCEPTION 'invites_status_check guard found % violating rows', violating_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'invites_status_check'
+  ) THEN
+    ALTER TABLE "invites"
+      ADD CONSTRAINT "invites_status_check"
+      CHECK ("status" IN ('pending', 'accepted', 'expired'));
+  END IF;
+END $$;
+
+DO $$
+DECLARE
+  violating_count bigint;
+BEGIN
+  SELECT count(*) INTO violating_count
+  FROM (
+    SELECT "owner_user_id", "client_request_id"
+    FROM "conversations"
+    WHERE "client_request_id" IS NOT NULL
+    GROUP BY "owner_user_id", "client_request_id"
+    HAVING count(*) > 1
+  ) duplicates;
+  IF violating_count > 0 THEN
+    RAISE EXCEPTION 'conversations_owner_client_request_uniq guard found % violating groups', violating_count;
+  END IF;
+END $$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "conversations_owner_client_request_uniq"
   ON "conversations" ("owner_user_id", "client_request_id");
 CREATE INDEX IF NOT EXISTS "conversations_owner_user_id_idx"
@@ -60,3 +108,5 @@ CREATE INDEX IF NOT EXISTS "invites_conversation_id_idx"
   ON "invites" ("conversation_id");
 CREATE INDEX IF NOT EXISTS "used_sso_tokens_used_at_idx"
   ON "used_sso_tokens" ("used_at");
+
+COMMIT;
