@@ -1,7 +1,9 @@
-import { createHash } from "node:crypto";
-import { eq, max, desc } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { eq, desc } from "drizzle-orm";
 import { db, messagesTable } from "@workspace/db";
 import { encryptText, decryptText } from "./crypto";
+
+type TransactionHandle = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function computeHash(fields: {
   prevHash: string;
@@ -28,40 +30,51 @@ export async function insertMessage(
   conversationId: string,
   sender: string,
   text: string,
+  transaction?: TransactionHandle,
   maxRetries = 5,
 ): Promise<InsertedMessage> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await db.transaction(async (tx) => {
-        const [agg] = await tx
-          .select({ maxSeq: max(messagesTable.seq) })
+      const insert = async (tx: typeof db | TransactionHandle): Promise<InsertedMessage> => {
+        const previousRows = await tx
+          .select({ seq: messagesTable.seq, hash: messagesTable.hash })
           .from(messagesTable)
-          .where(eq(messagesTable.conversationId, conversationId));
+          .where(eq(messagesTable.conversationId, conversationId))
+          .orderBy(desc(messagesTable.seq))
+          .limit(1);
 
-        const seq = (agg?.maxSeq ?? -1) + 1;
-
-        let prevHash = "";
-        if (seq > 0) {
-          const [prev] = await tx
-            .select({ hash: messagesTable.hash })
-            .from(messagesTable)
-            .where(eq(messagesTable.conversationId, conversationId))
-            .orderBy(desc(messagesTable.seq))
-            .limit(1);
-          prevHash = prev?.hash ?? "";
-        }
+        const [prev] = previousRows;
+        const previousSeq = Number(prev?.seq);
+        const seq = prev
+          ? Number.isFinite(previousSeq)
+            ? previousSeq + 1
+            : previousRows.length
+          : 0;
+        const prevHash = prev?.hash ?? "";
 
         const createdAt = new Date();
         const hash = computeHash({ prevHash, conversationId, seq, sender, text, createdAt });
 
         const [msg] = await tx
           .insert(messagesTable)
-          .values({ conversationId, sender, text: encryptText(text), seq, prevHash, hash, createdAt })
+          .values({
+            id: randomUUID(),
+            conversationId,
+            sender,
+            text: encryptText(text),
+            seq,
+            prevHash,
+            hash,
+            createdAt,
+          })
           .returning();
 
         return { ...msg, text };
-      });
+      };
+
+      if (transaction) return await insert(transaction);
+      return await db.transaction(insert);
     } catch (err: any) {
       lastErr = err;
       const isConflict = err?.code === "23505";

@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import { db, conversationsTable, messagesTable, invitesTable } from "@workspace/db";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { insertMessage, verifyChain } from "../lib/message-chain";
 import { decryptText } from "../lib/crypto";
+import { canAccess } from "../lib/access";
 
 const router: IRouter = Router();
 
@@ -14,6 +15,7 @@ const CreateConversationBody = z.object({
   partnerEmail: z.string().optional(),
   topic: z.string().optional(),
   mode: z.enum(["witness", "mediated"]).default("witness"),
+  clientRequestId: z.string().uuid().optional(),
 });
 
 const CreateMessageBody = z.object({
@@ -52,17 +54,71 @@ router.post("/conversations", async (req, res): Promise<void> => {
     return;
   }
 
-  const { partnerName, partnerEmail, topic, mode } = parsed.data;
+  const access = await canAccess(userId, req.session.user!.email);
+  if (!access) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
 
-  const [convo] = await db
-    .insert(conversationsTable)
-    .values({ ownerUserId: userId, partnerName, partnerEmail, topic, mode })
-    .returning();
+  const { partnerName, partnerEmail, topic, mode, clientRequestId } = parsed.data;
 
-  const introText = `I'm Bridget. I'll stay with you and ${partnerName} here. Everything said is timestamped and kept — a record that belongs to both of you.`;
-  const introMsg = await insertMessage(convo.id, "bridget", introText);
+  const result = await db.transaction(async (tx) => {
+    if (clientRequestId) {
+      const [existing] = await tx
+        .select()
+        .from(conversationsTable)
+        .where(
+          and(
+            eq(conversationsTable.ownerUserId, userId),
+            eq(conversationsTable.clientRequestId, clientRequestId),
+          ),
+        );
+      if (existing) {
+        let existingConversation = existing;
+        if (!existingConversation.id) {
+          const raw = await tx.execute(sql`
+            select id::text as id
+            from conversations
+            where owner_user_id = ${userId}
+              and client_request_id = ${clientRequestId}
+            limit 1
+          `);
+          const rawId = (raw.rows[0] as { id?: string } | undefined)?.id;
+          if (rawId) existingConversation = { ...existingConversation, id: rawId };
+        }
+        const messages = await tx
+          .select()
+          .from(messagesTable)
+          .where(eq(messagesTable.conversationId, existingConversation.id))
+          .orderBy(messagesTable.seq);
+        return { convo: existingConversation, messages, existing: true };
+      }
+    }
 
-  res.status(201).json({ ...convo, messages: [introMsg] });
+    const conversationId = crypto.randomUUID();
+    const [convo] = await tx
+      .insert(conversationsTable)
+      .values({
+        id: conversationId,
+        ownerUserId: userId,
+        partnerName,
+        partnerEmail,
+        topic,
+        mode,
+        clientRequestId,
+      })
+      .returning();
+
+    const introText = `I'm Bridget. I'll stay with you and ${partnerName} here. Everything said is timestamped and kept — a record that belongs to both of you.`;
+    const introMsg = await insertMessage(conversationId, "bridget", introText, tx);
+    return {
+      convo: { ...convo, id: convo.id ?? conversationId },
+      messages: [introMsg],
+      existing: false,
+    };
+  });
+
+  res.status(result.existing ? 200 : 201).json({ ...result.convo, messages: result.messages });
 });
 
 const UpdateTopicBody = z.object({
@@ -176,6 +232,7 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
     .where(eq(conversationsTable.id, id));
 
   let bridgetMessage = undefined;
+  let mediationFailed = false;
 
   if (convo.mode === "mediated") {
     try {
@@ -210,12 +267,20 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
           bridgetMessage = await insertMessage(id, "bridget", aiParsed.text.trim());
         }
       }
-    } catch {
-      // Bridget failure never blocks the user's message
+    } catch (err: any) {
+      mediationFailed = true;
+      req.log.error(
+        {
+          errorClass: err?.constructor?.name ?? "UnknownError",
+          message: err?.message ?? String(err),
+          conversationId: id,
+        },
+        "Mediation failed",
+      );
     }
   }
 
-  res.status(201).json({ message, bridgetMessage });
+  res.status(201).json({ message, bridgetMessage, mediationFailed });
 });
 
 router.post("/conversations/:id/invite", async (req, res): Promise<void> => {
@@ -241,10 +306,25 @@ router.post("/conversations/:id/invite", async (req, res): Promise<void> => {
 
   const token = crypto.randomBytes(32).toString("hex");
 
-  await db.insert(invitesTable).values({
-    token,
-    conversationId: id,
-    invitedEmail: convo.partnerEmail ?? undefined,
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(invitesTable)
+      .set({ status: "expired" })
+      .where(
+        and(
+          eq(invitesTable.conversationId, id),
+          eq(invitesTable.status, "pending"),
+        ),
+      );
+    await tx.insert(invitesTable).values({
+      id: crypto.randomUUID(),
+      token,
+      conversationId: id,
+      invitedEmail: convo.partnerEmail ?? undefined,
+      status: "pending",
+      expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+    });
   });
 
   res.status(201).json({ inviteUrl: `https://shalom.fyi/invite/${token}` });
