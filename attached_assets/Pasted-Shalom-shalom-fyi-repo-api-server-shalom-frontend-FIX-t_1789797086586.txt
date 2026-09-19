@@ -1,0 +1,53 @@
+Shalom (shalom.fyi repo -- api-server + shalom frontend)
+
+**FIX the audit findings below. Commit locally per item; do NOT push, do NOT deploy. No refactors beyond what each item names.**
+
+**Rules for every item:**
+- Before changing anything, reproduce the defect (a test or a scripted request against the local dev server) and paste the failing output.
+- Enumerate the whole class first -- every call site, route, or input variant the defect touches -- and fix all of them, not just the one cited.
+- After the change, rerun the same reproduction and paste it passing.
+- Add a vitest test for each item in `artifacts/api-server` (set up vitest if absent; no test currently exists). Tests must hit the real route handlers, with a test database or transaction rollback -- never the production database.
+- Migrations: nullable or defaulted columns only, no truncation, no destructive changes. Generate them with the existing Drizzle setup and include the SQL in the report. Do not apply them to production.
+- Do not change the hash-chain serialization or `computeHash` in any way -- existing chains must keep verifying.
+
+**1. SSO callback -- response validation (auth.ts callback).** Reject the login unless `user_id`, `email`, and `role` are non-empty strings; if the response contains a `valid` field and it is not `true`, reject the login too. Rejection redirects to `/?auth_error=verify_failed`. Log the rejection reason server-side without logging the token.
+
+**2. SSO callback -- endpoint contract (gated).** Do NOT change the verify call yet. From the dev environment, send one request with an obviously invalid token to each endpoint and paste the status code and body for both: `GET https://bridget.fyi/auth/sso/verify?token=invalid` and `POST https://bridget.fyi/auth/sso/validate` with JSON body `{"token":"invalid"}`. If and only if `/validate` returns an auth-rejection status (401/403/400 with an error body -- not 404/405), switch the callback to `POST /auth/sso/validate` with a JSON body, keeping item 1's validation. Otherwise leave the `GET` call as is and report the results. Login currently works in production on the `GET` call, so a switch must not ship unless the probe proves `/validate` exists.
+
+**3. SSO replay.** Add a `used_sso_tokens` table (sha256 of the token, `used_at`). In the callback, insert the hash before creating the session; a unique violation means the token was already used -- redirect to `/?auth_error=token_reused`. Prune rows older than 24 hours on insert.
+
+**4. Session secret (app.ts).** Remove the `"shalom-secret"` fallback. When `SESSION_SECRET` is missing, the server must refuse to start with a clear error. The final report must state on its own line: `REQUIRES SESSION_SECRET SET IN RAILWAY BEFORE DEPLOY`.
+
+**5. Session error handling.** Handle the error argument in the invite bootstrap `req.session.save()` and in the logout `req.session.destroy()`. Log the error and redirect with an error query parameter instead of proceeding silently.
+
+**6. Server-side access gate.** `canAccess` is currently enforced only by the UI. Fix it on the server:
+- `POST /conversations` requires `canAccess`; otherwise return 403.
+- Every conversation-scoped route keeps its participant check.
+- `/member/status` returns `canAccess: true` for an allowlisted user OR for any user who is owner or partner of at least one conversation -- so an invited partner is not locked out of the UI.
+- Move the allowlist check into one shared function used by both `/member/status` and the create route. Enumerate every route and show the resulting access table.
+
+**7. Invite acceptance -- one transaction.** In the callback join path, lock the invite row (`SELECT ... FOR UPDATE`), check it is still pending and unexpired, set `partnerUserId` with the existing `isNull` guard, and mark the invite accepted -- all in one `db.transaction`. Reproduce the two-concurrent-acceptance race before and after the change.
+
+**8. Invite recipient.** When `invitedEmail` is set, the accepting SSO email must match it (case-insensitive, trimmed). A mismatch leaves the invite pending and redirects to `/?invite_error=wrong_account`. When `invitedEmail` is null, keep the current behavior.
+
+**9. Invite expiry and duplicates.** Add a nullable `expires_at` column; new invites get `now + 7 days`. An expired or null-expiry legacy invite is handled as follows: null means no expiry (legacy). An invite past `expires_at` is rejected with `invite_error=expired` and its status is set to `expired`. Creating a new invite marks every other pending invite for the same conversation `expired`, in the same transaction as the insert.
+
+**10. Conversation creation -- atomic.** The conversation insert and the intro-message insert run in one transaction. Let `insertMessage` accept an optional transaction handle so the chain logic stays in one place; do not duplicate it.
+
+**11. Conversation creation -- idempotency.** Add a nullable `client_request_id` column with a unique constraint on `(owner_user_id, client_request_id)`. The frontend generates one UUID per create-form submission and sends it with the request. A repeat request with the same id returns the existing conversation (200) instead of inserting a new one.
+
+**12. Mediation failures.** Log every mediation failure server-side (error class, message, conversation id; no message text). Return `mediationFailed: true` in the POST response when mediated mode was attempted and failed. The UI shows a small inline notice ("Bridget couldn't respond to that message") in the conversation; the user's message stays sent.
+
+**13. Auth-bar XSS (index.html).** Replace the `innerHTML` construction of the auth bar in every branch with `createElement` + `textContent`. Enumerate every `innerHTML` / `dangerouslySetInnerHTML` / `outerHTML` / `insertAdjacentHTML` in `artifacts/shalom`, and report which ones take data from the network.
+
+**14. Frontend error states (member-home.tsx).** List load failure shows an error with a retry button, not "No conversations yet". Message load failure shows an error with retry, not an indefinite "Loading messages…". A failed send restores the draft text and shows an error. Polling failures stay silent, but three consecutive polling failures show a "connection lost" notice that clears on the next success.
+
+**15. Auth/invite error display.** Read `auth_error` and `invite_error` from the URL on load, show a plain-language message for each value the server emits (enumerate them all from the server code), then remove the parameter from the URL.
+
+**16. Deployment -- one path.** Production is served by a single Node process serving both the API and the static frontend. Make the root `Dockerfile` a multi-stage build that installs, builds the frontend and the API from source, and copies both outputs into the runtime image -- no reliance on committed `dist` folders. Pin one Node version (22) across the Dockerfile, the artifact Dockerfile, `nixpacks.toml`, and `replit.md`. Report every deploy config in the repo (`Dockerfile`s, `railway.json`, `railway-package.json`, `nixpacks.toml`, `artifact.toml`) and, for each one, state whether it is retained, updated, or removed and why. Do not delete a config Railway might be pointed at without saying so in the report. Build the image locally and paste proof that `/healthz` returns JSON and `/` returns the frontend.
+
+**17. Dev routing (api-server artifact.toml).** The API service `paths` must cover every route prefix the server exposes (`/auth`, `/member`, `/conversations`, `/invite`, `/healthz`). Derive the list from the router, not by hand. Resolve the `/api` prefix mismatch so the health check path actually hits `/healthz`.
+
+**18. DB checks and indexes.** First run a count query against the dev database for rows violating each proposed constraint and paste the counts. Only when all counts are zero, add CHECK constraints for `conversations.mode IN ('witness','mediated')` and `invites.status IN ('pending','accepted','expired')`. Add indexes on `conversations.owner_user_id`, `conversations.partner_user_id`, `conversations.updated_at`, and `invites.conversation_id`.
+
+**Report format:** one section per item, numbered as above, each with: files changed (path:line), before-reproduction output, after-reproduction output, test name, and commit hash. End with a summary table of item | status (done / gated-not-changed / blocked) | commit, then the list of migrations with their SQL, then the SESSION_SECRET line.
