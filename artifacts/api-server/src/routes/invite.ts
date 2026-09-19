@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { db, invitesTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -19,9 +19,22 @@ router.get("/invite/:token", async (req, res): Promise<void> => {
     res.redirect("/?invite_error=invalid");
     return;
   }
+  if (invite.expiresAt && invite.expiresAt <= new Date()) {
+    await db
+      .update(invitesTable)
+      .set({ status: "expired" })
+      .where(eq(invitesTable.id, invite.id));
+    res.redirect("/?invite_error=expired");
+    return;
+  }
 
   req.session.pendingInvite = token;
-  req.session.save(() => {
+  req.session.save((err) => {
+    if (err) {
+      req.log.error({ err }, "Invite session save failed");
+      res.redirect("/?invite_error=session_save_failed");
+      return;
+    }
     res.redirect(SSO_INIT_URL);
   });
 });
