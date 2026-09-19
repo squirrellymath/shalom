@@ -1,20 +1,17 @@
 import { Router } from "express";
-
-const SHALOM_BYPASS = [
-  "justin.malkin@outlook.com",
-  "rechavambenshlomo@outlook.com",
-  "rechavambenshlomo@gmail.com",
-  "adam.kokesh@gmail.com",
-];
+import { canAccess } from "../lib/access";
 
 const router = Router();
 
-router.get("/member/status", (req, res) => {
+router.get("/member/status", async (req, res): Promise<void> => {
   if (req.session.user) {
-    const canAccess = SHALOM_BYPASS.includes(req.session.user.email.toLowerCase());
+    const access = await canAccess(
+      req.session.user.user_id,
+      req.session.user.email,
+    );
     res.json({
       authenticated: true,
-      canAccess,
+      canAccess: access,
       email: req.session.user.email,
       role: req.session.user.role,
     });

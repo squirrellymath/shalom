@@ -34,6 +34,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const PgSession = connectPgSimple(session);
+const sessionSecret = process.env["SESSION_SECRET"];
+
+if (!sessionSecret) {
+  throw new Error("SESSION_SECRET must be set before starting the API server.");
+}
 
 app.use(session({
   store: new PgSession({
@@ -42,12 +47,18 @@ app.use(session({
     createTableIfMissing: true,
     errorLog: (...args: unknown[]) => logger.error({ args }, "Session store error"),
   }),
-  secret: process.env["SESSION_SECRET"] ?? "shalom-secret",
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, httpOnly: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 },
+  cookie: {
+    secure: process.env["NODE_ENV"] !== "test",
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  },
 }));
 
+app.use("/api", router);
 app.use("/", router);
 
 const STATIC_DIR = process.env.STATIC_DIR || "/app/artifacts/shalom/dist/public";
