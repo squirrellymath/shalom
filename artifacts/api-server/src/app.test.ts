@@ -73,7 +73,7 @@ beforeEach(async () => {
 });
 
 describe("SSO callback", () => {
-  it("uses the validated Bridget callback contract", async () => {
+  it("retains the GET Bridget callback contract when /validate is not an auth rejection", async () => {
     const fetchMock = vi.fn().mockImplementation(
       async () =>
         new Response(JSON.stringify(validSsoResponse), {
@@ -86,11 +86,10 @@ describe("SSO callback", () => {
     await request(app).get("/auth/sso/callback?token=contract-token").expect(302);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://bridget.fyi/auth/sso/validate",
       expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ token: "contract-token" }),
+        href: "https://bridget.fyi/auth/sso/verify?token=contract-token",
       }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 

@@ -26,18 +26,11 @@ router.get("/auth/sso/callback", async (req, res) => {
     typeof req.query.token === "string" ? req.query.token : null;
   if (!token) return res.redirect("/?auth_error=missing_token");
   try {
-    const response = await fetch(
-      "https://bridget.fyi/auth/sso/validate",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "https://shalom.fyi",
-        },
-        body: JSON.stringify({ token }),
-        signal: AbortSignal.timeout(10_000),
-      }
-    );
+    const verifyUrl = new URL("https://bridget.fyi/auth/sso/verify");
+    verifyUrl.searchParams.set("token", token);
+    const response = await fetch(verifyUrl, {
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!response.ok) {
       req.log.warn({ statusCode: response.status }, "SSO verification rejected");
       res.redirect("/?auth_error=verify_failed");
