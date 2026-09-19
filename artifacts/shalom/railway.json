@@ -1,1 +1,6 @@
-{"deploy":{"startCommand":"npx serve /app/artifacts/shalom/dist/public -l $PORT"}}
+{
+  "deploy": {
+    "startCommand": "node /app/artifacts/api-server/dist/index.mjs",
+    "healthcheckPath": "/healthz"
+  }
+}

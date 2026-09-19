@@ -1,10 +1,10 @@
-# [Project name]
+# Shalom
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Shalom is a private conversation space for two participants, with optional mediated messages and invite-based access.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -13,7 +13,7 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
+- pnpm workspaces, Node.js 22 in deployment and TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
@@ -22,23 +22,29 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/routes/` — Express route handlers
+- `artifacts/shalom/src/` — React/Vite frontend
+- `lib/db/src/schema/` — Drizzle schema source
+- `lib/db/drizzle/` — checked-in SQL migrations
+- `lib/api-spec/openapi.yaml` — API contract source
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- SSO callback tokens are stored as SHA-256 hashes and are single-use.
+- Invite acceptance and participant assignment happen in one transaction.
+- The API serves the web build in the production image and is also available under `/api`.
+- Message hash serialization and `computeHash` inputs are stable compatibility contracts.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Members create witness or mediated conversations.
+- Conversation owners invite participants with expiring links.
+- Participants can read and send messages only in conversations they belong to.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `SESSION_SECRET` is required at API startup; do not add a fallback.
+- `DATABASE_URL` must point at the intended environment before applying migrations.
 
 ## Pointers
 

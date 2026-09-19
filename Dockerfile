@@ -1,7 +1,17 @@
-FROM node:20-alpine
+FROM node:22-alpine AS build
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
 WORKDIR /app
-COPY artifacts/api-server/dist /app/artifacts/api-server/dist
-COPY artifacts/shalom/dist/public /app/artifacts/shalom/dist/public
+COPY . .
+RUN pnpm install --frozen-lockfile
+ENV PORT=8080
+ENV BASE_PATH=/
+RUN pnpm --filter @workspace/api-server run build
+RUN pnpm --filter @workspace/shalom run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /app/artifacts/api-server/dist /app/artifacts/api-server/dist
+COPY --from=build /app/artifacts/shalom/dist/public /app/artifacts/shalom/dist/public
 ENV STATIC_DIR=/app/artifacts/shalom/dist/public
 ENV NODE_ENV=production
 CMD ["node", "/app/artifacts/api-server/dist/index.mjs"]

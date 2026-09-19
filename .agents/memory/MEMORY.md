@@ -1,0 +1,1 @@
+- [pg-mem Drizzle adapter](pg-mem-drizzle-adapter.md) — preserve Drizzle's array-row contract when adapting pg-mem query results.

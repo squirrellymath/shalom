@@ -5,4 +5,7 @@ nixPkgs = ["nodejs_22", "nodePackages.pnpm"]
 cmds = ["pnpm install --no-frozen-lockfile"]
 
 [phases.build]
-cmds = ["pnpm --filter @workspace/api-server run build"]
+cmds = [
+  "PORT=8080 BASE_PATH=/ pnpm --filter @workspace/api-server run build",
+  "PORT=8080 BASE_PATH=/ pnpm --filter @workspace/shalom run build",
+]

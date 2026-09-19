@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -35,3 +35,6 @@ externalPort = 80
 
 [userenv.development]
 MESSAGE_ENC_KEY = "yKWrnAjxD06o6jIuPlqeIBO45BLUWN2v4WvAYob88kI="
+
+[nix]
+channel = "stable-25_05"
