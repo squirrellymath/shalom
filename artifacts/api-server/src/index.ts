@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { pool } from "@workspace/db";
+import { migrationPath, runStartupMigration } from "./startup-migration";
 
 const rawPort = process.env["PORT"];
 
@@ -13,6 +15,15 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+try {
+  await runStartupMigration();
+  logger.info({ migrationPath }, "Startup migration completed");
+} catch (err) {
+  logger.error({ err, migrationPath }, "Startup migration failed");
+  await pool.end();
+  process.exit(1);
 }
 
 app.listen(port, (err) => {

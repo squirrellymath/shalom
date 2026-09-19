@@ -11,6 +11,7 @@ RUN pnpm install --filter @workspace/api-server... --ignore-scripts
 COPY lib/api-zod/ ./lib/api-zod/
 COPY lib/db/ ./lib/db/
 COPY artifacts/api-server/ ./artifacts/api-server/
+ENV MIGRATION_PATH=/repo/lib/db/drizzle/0000_messy_puck.sql
 WORKDIR /repo/artifacts/api-server
 RUN node build.mjs
 EXPOSE 8080

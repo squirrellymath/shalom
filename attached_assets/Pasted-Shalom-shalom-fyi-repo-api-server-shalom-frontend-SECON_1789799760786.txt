@@ -1,0 +1,25 @@
+Shalom (shalom.fyi repo -- api-server + shalom frontend)
+
+SECOND SEND-BACK. Do NOT push, do NOT deploy. Two items only; change nothing else.
+
+1. SSO callback -- the success path on the retained GET contract.
+
+Paste the current response-validation code in the callback (path:line).
+Paste the exact request the callback sends to GET /auth/sso/verify, headers included. Show it is unchanged from the pre-audit version that works in production today (the Origin header in particular). The external probe returned 401 "Invalid or missing SSO shared secret," so any change to that request is a regression.
+The rule is: reject only when valid is present and not true; a response without a valid field, with non-empty user_id, email and role, must log in.
+Add route tests for four cases: (a) no valid field with good fields → session created and redirect home; (b) valid: true with good fields → session created; (c) valid: false → verify_failed; (d) missing email → verify_failed. Paste each result. If (a) fails on the current code, show it failing, fix it, and show it passing.
+
+2. Run the migration at startup.
+
+Bundle the guarded migration SQL into the runtime image, and show it present in the container.
+On boot, before listen, take a Postgres advisory lock, run the migration against DATABASE_URL, and release the lock. On any error, including a guard exception, log the message and exit non-zero without listening.
+Leave the migration content exactly as committed (one transaction, guards before every constraint, idempotent).
+Prove with the built container against the development Postgres:
+Boot twice; both boots succeed and /healthz returns JSON. Paste both migration log lines.
+Boot against a throwaway database or schema seeded with one invalid conversations.mode row; the container exits non-zero with the guard message and applies nothing. Paste the exit code, the log, and a check that no new table exists.
+Boot without SESSION_SECRET; the container exits non-zero. Paste the exit code.
+Remove the proposed separate production-migration follow-up; production migrates on its own first boot.
+
+Report format: sections 1 and 2 with pasted outputs, commit hashes, then one line stating the final test count.
+
+SESSION_SECRET still has to be set in Railway before deploy. With the Railway health check set to /healthz, a boot that fails for either reason should keep the current deployment live.

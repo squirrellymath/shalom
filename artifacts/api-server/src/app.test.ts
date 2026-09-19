@@ -73,7 +73,7 @@ beforeEach(async () => {
 });
 
 describe("SSO callback", () => {
-  it("retains the GET Bridget callback contract when /validate is not an auth rejection", async () => {
+  it("retains the exact production GET Bridget callback request", async () => {
     const fetchMock = vi.fn().mockImplementation(
       async () =>
         new Response(JSON.stringify(validSsoResponse), {
@@ -86,17 +86,51 @@ describe("SSO callback", () => {
     await request(app).get("/auth/sso/callback?token=contract-token").expect(302);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        href: "https://bridget.fyi/auth/sso/verify?token=contract-token",
-      }),
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      "https://bridget.fyi/auth/sso/verify?token=contract-token",
+      {
+        method: "GET",
+        headers: { Origin: "https://shalom.fyi" },
+        signal: expect.any(AbortSignal),
+      },
     );
   });
 
-  it("rejects malformed response fields and false valid flags", async () => {
+  it("logs in when valid is absent and required fields are present", async () => {
+    const agent = request.agent(app);
+    mockSso({ user_id: "owner-1", email: "owner@example.com", role: "member" });
+    await agent
+      .get("/auth/sso/callback?token=no-valid-field")
+      .expect(302)
+      .expect("Location", "/");
+    await agent.get("/member/status").expect(200).expect((res) => {
+      expect(res.body.authenticated).toBe(true);
+    });
+  });
+
+  it("logs in when valid is true and required fields are present", async () => {
+    const agent = request.agent(app);
+    mockSso({ valid: true, user_id: "owner-1", email: "owner@example.com", role: "member" });
+    await agent
+      .get("/auth/sso/callback?token=valid-true")
+      .expect(302)
+      .expect("Location", "/");
+    await agent.get("/member/status").expect(200).expect((res) => {
+      expect(res.body.authenticated).toBe(true);
+    });
+  });
+
+  it("rejects valid false", async () => {
     mockSso({ valid: false, user_id: "owner-1", email: "owner@example.com", role: "member" });
     await request(app)
       .get("/auth/sso/callback?token=bad-response")
+      .expect(302)
+      .expect("Location", "/?auth_error=verify_failed");
+  });
+
+  it("rejects a missing email", async () => {
+    mockSso({ valid: true, user_id: "owner-1", role: "member" });
+    await request(app)
+      .get("/auth/sso/callback?token=missing-email")
       .expect(302)
       .expect("Location", "/?auth_error=verify_failed");
   });

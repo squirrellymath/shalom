@@ -26,9 +26,11 @@ router.get("/auth/sso/callback", async (req, res) => {
     typeof req.query.token === "string" ? req.query.token : null;
   if (!token) return res.redirect("/?auth_error=missing_token");
   try {
-    const verifyUrl = new URL("https://bridget.fyi/auth/sso/verify");
-    verifyUrl.searchParams.set("token", token);
+    const verifyUrl =
+      `https://bridget.fyi/auth/sso/verify?token=${encodeURIComponent(token)}`;
     const response = await fetch(verifyUrl, {
+      method: "GET",
+      headers: { Origin: "https://shalom.fyi" },
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) {
