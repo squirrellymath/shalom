@@ -50,13 +50,6 @@ BEGIN
       ADD CONSTRAINT "conversations_mode_check"
       CHECK ("mode" IN ('witness', 'mediated'));
   END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'invites_status_check'
-  ) THEN
-    ALTER TABLE "invites"
-      ADD CONSTRAINT "invites_status_check"
-      CHECK ("status" IN ('pending', 'accepted', 'expired'));
-  END IF;
 END $$;
 
 DO $$
