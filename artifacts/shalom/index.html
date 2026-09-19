@@ -30,12 +30,33 @@
           const res = await fetch('/member/status', { credentials: 'include' });
           const data = await res.json();
           if (data.authenticated) {
-            bar.innerHTML = (data.email ?? '') + ' &nbsp;<a href="/auth/logout" style="color:#888;text-decoration:none;">Log out</a>';
+            bar.replaceChildren();
+            const email = document.createElement('span');
+            email.textContent = data.email ?? '';
+            const spacer = document.createTextNode(' ');
+            const logout = document.createElement('a');
+            logout.href = '/auth/logout';
+            logout.textContent = 'Log out';
+            logout.style.color = '#888';
+            logout.style.textDecoration = 'none';
+            bar.append(email, spacer, logout);
           } else {
-            bar.innerHTML = '<a href="https://bridget.fyi/auth/sso/init?return_to=' + encodeURIComponent('https://shalom.fyi/auth/sso/callback') + '" style="color:#888;text-decoration:none;">Sign in with Bridget \u2192</a>';
+            bar.replaceChildren();
+            const signIn = document.createElement('a');
+            signIn.href = 'https://bridget.fyi/auth/sso/init?return_to=' + encodeURIComponent('https://shalom.fyi/auth/sso/callback');
+            signIn.textContent = 'Sign in with Bridget →';
+            signIn.style.color = '#888';
+            signIn.style.textDecoration = 'none';
+            bar.append(signIn);
           }
         } catch {
-          bar.innerHTML = '<a href="https://bridget.fyi/auth/sso/init?return_to=' + encodeURIComponent('https://shalom.fyi/auth/sso/callback') + '" style="color:#888;text-decoration:none;">Sign in with Bridget \u2192</a>';
+          bar.replaceChildren();
+          const signIn = document.createElement('a');
+          signIn.href = 'https://bridget.fyi/auth/sso/init?return_to=' + encodeURIComponent('https://shalom.fyi/auth/sso/callback');
+          signIn.textContent = 'Sign in with Bridget →';
+          signIn.style.color = '#888';
+          signIn.style.textDecoration = 'none';
+          bar.append(signIn);
         }
       })();
     </script>

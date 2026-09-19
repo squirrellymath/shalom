@@ -7,6 +7,7 @@ type Conversation = {
   id: string; partnerName: string; partnerEmail?: string; topic?: string;
   mode: "witness" | "mediated"; updatedAt: string; messages?: Message[];
 };
+type MessageResult = { message: Message; mediationFailed: boolean };
 
 async function apiFetch(path: string, opts?: RequestInit) {
   const res = await fetch(path, { credentials: "include", ...opts });
@@ -24,6 +25,11 @@ export default function MemberHome({ email }: { email?: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
+  const [messageError, setMessageError] = useState(false);
+  const [pollFailures, setPollFailures] = useState(0);
+  const [connectionLost, setConnectionLost] = useState(false);
   const [dark, setDark] = useState(() => initTheme());
   const active = conversations.find((c) => c.id === activeId) || null;
 
@@ -34,10 +40,13 @@ export default function MemberHome({ email }: { email?: string }) {
   };
 
   const loadConversations = useCallback(async () => {
+    setListError(false);
     try {
       const data = await apiFetch("/conversations");
       setConversations(data);
-    } catch {}
+    } catch {
+      setListError(true);
+    }
     setLoading(false);
   }, []);
 
@@ -55,7 +64,15 @@ export default function MemberHome({ email }: { email?: string }) {
             return existing?.messages ? { ...c, messages: existing.messages } : c;
           })
         );
-      } catch {}
+        setPollFailures(0);
+        setConnectionLost(false);
+      } catch {
+        setPollFailures((count) => {
+          const next = count + 1;
+          if (next >= 3) setConnectionLost(true);
+          return next;
+        });
+      }
     }, 10_000);
     return () => clearInterval(interval);
   }, [view]);
@@ -67,7 +84,15 @@ export default function MemberHome({ email }: { email?: string }) {
       try {
         const messages = await apiFetch(`/conversations/${activeId}/messages`);
         setConversations((p) => p.map((c) => c.id === activeId ? { ...c, messages } : c));
-      } catch {}
+        setPollFailures(0);
+        setConnectionLost(false);
+      } catch {
+        setPollFailures((count) => {
+          const next = count + 1;
+          if (next >= 3) setConnectionLost(true);
+          return next;
+        });
+      }
     }, 4_000);
     return () => clearInterval(interval);
   }, [activeId, view]);
@@ -77,7 +102,13 @@ export default function MemberHome({ email }: { email?: string }) {
       const convo = await apiFetch("/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partnerName: name, partnerEmail: em || undefined, topic: topic || undefined, mode }),
+        body: JSON.stringify({
+          partnerName: name,
+          partnerEmail: em || undefined,
+          topic: topic || undefined,
+          mode,
+          clientRequestId: crypto.randomUUID(),
+        }),
       });
       setConversations((p) => [convo, ...p]);
       setModal(false);
@@ -89,9 +120,9 @@ export default function MemberHome({ email }: { email?: string }) {
     }
   };
 
-  const addMsg = async (id: string, text: string): Promise<Message | null> => {
+  const addMsg = async (id: string, text: string): Promise<MessageResult | null> => {
     try {
-      const { message, bridgetMessage } = await apiFetch(`/conversations/${id}/messages`, {
+      const { message, bridgetMessage, mediationFailed } = await apiFetch(`/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -102,7 +133,7 @@ export default function MemberHome({ email }: { email?: string }) {
         if (bridgetMessage) appended.push(bridgetMessage);
         return { ...c, messages: appended, updatedAt: new Date().toISOString() };
       }));
-      return message;
+      return { message, mediationFailed: Boolean(mediationFailed) };
     } catch { return null; }
   };
 
@@ -121,10 +152,16 @@ export default function MemberHome({ email }: { email?: string }) {
   const openConvo = async (id: string) => {
     setActiveId(id);
     setView("conversation");
+    setMessageLoading(true);
+    setMessageError(false);
     try {
       const messages = await apiFetch(`/conversations/${id}/messages`);
       setConversations((p) => p.map((c) => c.id === id ? { ...c, messages } : c));
-    } catch {}
+    } catch {
+      setMessageError(true);
+    } finally {
+      setMessageLoading(false);
+    }
   };
 
   return (
@@ -154,7 +191,12 @@ export default function MemberHome({ email }: { email?: string }) {
           </div>
           {loading ? (
             <div className="text-center py-20 text-stone-400 text-sm">Loading…</div>
-          ) : conversations.length === 0 ? (
+      ) : listError ? (
+        <div role="alert" className="text-center py-20 border border-red-200 dark:border-red-900 rounded-2xl bg-white dark:bg-stone-900">
+          <p className="text-red-600 dark:text-red-400 font-medium">Couldn’t load your conversations.</p>
+          <button onClick={loadConversations} className="mt-3 text-sm underline text-stone-600 dark:text-stone-300">Retry</button>
+        </div>
+      ) : conversations.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-stone-200 dark:border-stone-700 rounded-2xl bg-white dark:bg-stone-900">
               <div className="text-3xl text-stone-300 dark:text-stone-600 mb-3">ש</div>
               <p className="text-stone-600 dark:text-stone-300 font-medium">No conversations yet</p>
@@ -188,22 +230,38 @@ export default function MemberHome({ email }: { email?: string }) {
           )}
         </div>
       ) : active ? (
-        <ConvoView convo={active} onBack={() => { setView("home"); setActiveId(null); }} addMsg={addMsg} email={email} updateTopic={updateTopic} />
+        <ConvoView
+          convo={active}
+          onBack={() => { setView("home"); setActiveId(null); }}
+          addMsg={addMsg}
+          email={email}
+          updateTopic={updateTopic}
+          messageLoading={messageLoading}
+          messageError={messageError}
+          onRetryMessages={() => openConvo(active.id)}
+          connectionLost={connectionLost}
+        />
       ) : null}
       {modal && <NewModal onClose={() => setModal(false)} onCreate={create} />}
     </div>
   );
 }
 
-function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
+function ConvoView({ convo, onBack, addMsg, email, updateTopic, messageLoading, messageError, onRetryMessages, connectionLost }: {
   convo: Conversation;
   onBack: () => void;
-  addMsg: (id: string, text: string) => Promise<Message | null>;
+  addMsg: (id: string, text: string) => Promise<MessageResult | null>;
   email?: string;
   updateTopic: (id: string, topic: string) => Promise<Conversation | null>;
+  messageLoading: boolean;
+  messageError: boolean;
+  onRetryMessages: () => void;
+  connectionLost: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(false);
+  const [mediationFailed, setMediationFailed] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState(false);
   const [inviteAlreadyJoined, setInviteAlreadyJoined] = useState(false);
@@ -264,7 +322,14 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
     if (!t || sending) return;
     setSending(true);
     setDraft("");
-    await addMsg(convo.id, t);
+    setSendError(false);
+    const result = await addMsg(convo.id, t);
+    if (!result) {
+      setDraft(t);
+      setSendError(true);
+    } else if (result.mediationFailed) {
+      setMediationFailed(true);
+    }
     setSending(false);
   };
 
@@ -329,9 +394,25 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
           </button>
         </div>
       )}
+      {connectionLost && (
+        <div role="status" className="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-center text-xs text-amber-700 dark:text-amber-300">
+          Connection lost — trying to reconnect.
+        </div>
+      )}
+      {mediationFailed && (
+        <div role="status" className="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-center text-xs text-amber-700 dark:text-amber-300">
+          Bridget couldn’t respond to that message.
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl w-full mx-auto">
-        {messages.length === 0 && (
+        {messageLoading && (
           <div className="text-center text-stone-400 text-sm py-8">Loading messages…</div>
+        )}
+        {messageError && (
+          <div role="alert" className="text-center text-red-500 text-sm py-8">
+            <p>Couldn’t load messages.</p>
+            <button onClick={onRetryMessages} className="mt-2 underline">Retry</button>
+          </div>
         )}
         {messages.map((m) => {
           if (m.sender === "bridget") {
@@ -360,12 +441,13 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic }: {
       </div>
       <div className="bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-700 px-4 py-3">
         <div className="max-w-2xl mx-auto flex gap-2">
-          <input value={draft} onChange={(e) => setDraft(e.target.value)}
+          <input value={draft} onChange={(e) => { setDraft(e.target.value); setSendError(false); }}
             onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Speak…"
             className="flex-1 px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 focus:outline-none focus:border-stone-400 dark:focus:border-stone-500" />
           <button onClick={send} disabled={!draft.trim() || sending}
             className="px-5 py-3 rounded-xl bg-stone-900 dark:bg-stone-200 text-white dark:text-stone-900 font-medium disabled:opacity-30 hover:bg-stone-800 dark:hover:bg-stone-300 transition">Send</button>
         </div>
+        {sendError && <p role="alert" className="max-w-2xl mx-auto mt-2 text-xs text-red-500">Your message wasn’t sent. Try again.</p>}
       </div>
     </div>
   );
