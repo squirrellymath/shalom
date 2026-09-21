@@ -256,15 +256,28 @@ describe("SSO callback", () => {
       .expect("Location", "/?auth_error=verify_failed&reason=bridget_200");
   });
 
-  it("reports Bridget verify status and a truncated detail", async () => {
-    mockSsoError(401, { detail: "The Bridget session is still a guest account and cannot be used here." });
+  it("reports Bridget 401 status and the verification detail", async () => {
+    mockSsoError(401, { detail: "Invalid or missing SSO shared secret." });
     await request(app)
       .get("/auth/sso/callback?token=bridget-error")
       .expect(302)
       .expect(
         "Location",
-        "/?auth_error=verify_failed&reason=bridget_401&detail=The+Bridget+session+is+still+a+guest+account+and+cannot+be+used+here.",
+        "/?auth_error=verify_failed&reason=bridget_401&detail=Invalid+or+missing+SSO+shared+secret.",
       );
+  });
+
+  it("reports Bridget 500 status without a detail when the response has no body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(null, { status: 500 }),
+      ),
+    );
+    await request(app)
+      .get("/auth/sso/callback?token=bridget-server-error")
+      .expect(302)
+      .expect("Location", "/?auth_error=verify_failed&reason=bridget_500");
   });
 
   it("rejects a missing email", async () => {
