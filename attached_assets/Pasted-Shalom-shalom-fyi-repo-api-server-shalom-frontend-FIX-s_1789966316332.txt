@@ -1,0 +1,26 @@
+Shalom (shalom.fyi repo -- api-server + shalom frontend)
+
+**FIX: sign-in fails for a real account after a guest attempt. Commit locally; do NOT push.**
+
+**Production evidence (Railway Deploy Logs, current deployment):** After a guest refusal, repeated sign-in attempts produce either `SSO identity received` followed by `Guest SSO login rejected`, or `SSO verification rejected`. A real user cannot get back in.
+
+1. **Reason code on screen.** Every SSO failure redirect carries a short `reason` parameter, and the home page shows it in small text under the error message:
+   - For a guest refusal: `reason=<guest_condition>` (`is_guest`, `role_guest` or `email_prefix`).
+   - For a verify failure: `reason=bridget_<statusCode>`, plus the `detail` string from Bridget's error body if one is present, truncated to 80 characters.
+
+   The reason never includes the token or any email. Remove the parameter from the URL after display, as the existing error parameters are.
+2. **Probe Bridget logout.** Run `curl -sI "https://bridget.fyi/auth/sso/logout?next=<value>"` for `https://shalom.fyi/` and for the URL-encoded `https://shalom.fyi/?auth_error=guest_not_supported&reason=is_guest`. Paste the status and `Location` header for each.
+3. **End the guest's Bridget session on refusal.** When the callback refuses a guest, redirect through Bridget logout so the next sign-in starts clean.
+   - If probe 2's second URL comes back as the `Location`, use it as `next`.
+   - Otherwise use `next=https://shalom.fyi/` and carry the error and reason in a short-lived signed cookie that the home page reads, displays once and clears.
+
+   Keep everything else unchanged: the SSO token is still consumed, no session is created, and a pending invite stays pending.
+4. **Tests.**
+   - A guest callback redirects to the Bridget logout URL with the chosen `next`.
+   - The guest message and reason display on return.
+   - A verify failure shows `bridget_<status>` with the detail.
+   - A normal login right after a guest refusal succeeds and creates a session.
+   - A pending invite stays pending through the logout round trip.
+5. **Report:** both probe results, the files changed (path:line), before/after redirects for a guest callback and a verify failure, the test names and results, the total test count, and the commit hash.
+
+Before ending the turn, post the raw output of every action run in this turn.
