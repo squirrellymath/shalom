@@ -1,0 +1,23 @@
+Shalom (shalom.fyi repo -- api-server + shalom frontend)
+
+**FIX: a real user can't sign in after a guest attempt. Commit locally; do NOT push.**
+
+**Symptom (production):** A browser that tried Bridget guest sign-in gets `guest_not_supported`, as intended. After that, clicking "Sign in with Bridget" to sign in with the user's own account still lands on `guest_not_supported`. The likely cause is that the guest refusal leaves the Bridget guest session alive, so Bridget hands the guest back on every attempt. The logging below establishes which cause it is. The logout fix is needed either way, because a refused guest must never be stuck.
+
+1. **Diagnostic logging.** On every SSO callback, log one line with: which guest condition fired (`is_guest`, `role_guest`, `email_prefix`, or `none`), the `user_id`, the `role`, whether the email is empty, and the email domain only (the part after `@`). Never log the token or the full email.
+2. **Probe Bridget logout.** Run `curl -sI "https://bridget.fyi/auth/sso/logout?next=<value>"` for each value below and paste the status and `Location` header for each:
+   - `https://shalom.fyi/`
+   - `https://shalom.fyi/?auth_error=guest_not_supported`, URL-encoded
+3. **End the guest's Bridget session on refusal.** When the callback refuses a guest, redirect through Bridget logout instead of straight to `/?auth_error=guest_not_supported`.
+   - If probe 2b shows Bridget redirecting to that exact URL, use it as `next`.
+   - Otherwise use `next=https://shalom.fyi/` and carry the error in a short-lived session flag or cookie that the home page reads, displays once and clears.
+
+   Keep everything else unchanged: the SSO token is still consumed, no session is created, and a pending invite stays pending.
+4. **Tests.**
+   - A guest callback redirects to the Bridget logout URL with the chosen `next`.
+   - The guest message still displays on return.
+   - A normal login right after a guest refusal succeeds and creates a session.
+   - The pending invite stays pending through the logout round trip.
+5. **Report:** both probe results, the files changed (path:line), before/after redirects for a guest callback, the test names and results, the total test count, and the commit hash.
+
+Before ending the turn, post the raw output of every action run in this turn.

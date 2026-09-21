@@ -2,6 +2,7 @@ import request from "supertest";
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getGuestCondition } from "./lib/access";
 
 const anthropicCreate = vi.hoisted(() => vi.fn());
 const testSessions = vi.hoisted(() => new Map<string, any>());
@@ -74,6 +75,17 @@ beforeEach(async () => {
 });
 
 describe("SSO callback", () => {
+  it("classifies guest identities without exposing their email", () => {
+    expect(getGuestCondition({ email: "", role: "guest", is_guest: true }))
+      .toBe("is_guest");
+    expect(getGuestCondition({ email: "", role: "guest" }))
+      .toBe("role_guest");
+    expect(getGuestCondition({ email: "__guest__x", role: "free" }))
+      .toBe("email_prefix");
+    expect(getGuestCondition({ email: "User@Example.COM", role: "member" }))
+      .toBe("none");
+  });
+
   it("retains the exact production GET Bridget callback request", async () => {
     const fetchMock = vi.fn().mockImplementation(
       async () =>

@@ -7,9 +7,14 @@ import {
   conversationsTable,
   usedSsoTokensTable,
 } from "@workspace/db";
-import { isGuestUser } from "../lib/access";
+import { getGuestCondition, isGuestUser } from "../lib/access";
 
 const router = Router();
+
+function emailDomain(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  return at >= 0 && at < email.length - 1 ? email.slice(at + 1).toLowerCase() : null;
+}
 
 function saveSession(req: Request, res: Response, onSuccess: () => void) {
   req.session.save((err) => {
@@ -47,7 +52,16 @@ router.get("/auth/sso/callback", async (req, res) => {
       role: typeof data.role === "string" ? data.role.trim() : "",
       is_guest: data.is_guest,
     };
-    const guest = isGuestUser(identity);
+    const guestCondition = getGuestCondition(identity);
+    const guest = guestCondition !== "none";
+
+    req.log.info({
+      guest_condition: guestCondition,
+      user_id: identity.user_id,
+      role: identity.role,
+      email_empty: identity.email.length === 0,
+      email_domain: emailDomain(identity.email),
+    }, "SSO identity received");
 
     if ("valid" in data && data.valid !== true) {
       req.log.warn({ reason: "valid_flag_false" }, "SSO response rejected");

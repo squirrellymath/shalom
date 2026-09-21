@@ -10,14 +10,30 @@ export const SHALOM_BYPASS = new Set([
 
 type DatabaseLike = typeof db;
 
+export type GuestCondition = "is_guest" | "role_guest" | "email_prefix" | "none";
+
+export function getGuestCondition(user: {
+  email?: unknown;
+  role?: unknown;
+  is_guest?: unknown;
+}): GuestCondition {
+  if (user.is_guest === true) return "is_guest";
+
+  const role = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+  if (role === "guest") return "role_guest";
+
+  const email = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+  if (email.startsWith("__guest__")) return "email_prefix";
+
+  return "none";
+}
+
 export function isGuestUser(user: {
   email?: unknown;
   role?: unknown;
   is_guest?: unknown;
 }): boolean {
-  const email = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
-  const role = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
-  return user.is_guest === true || role === "guest" || email.startsWith("__guest__");
+  return getGuestCondition(user) !== "none";
 }
 
 export async function canAccess(
