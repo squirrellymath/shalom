@@ -7,6 +7,7 @@ import {
   conversationsTable,
   usedSsoTokensTable,
 } from "@workspace/db";
+import { isGuestUser } from "../lib/access";
 
 const router = Router();
 
@@ -40,24 +41,35 @@ router.get("/auth/sso/callback", async (req, res) => {
     }
 
     const data = await response.json() as Record<string, unknown>;
-    const stringFields = ["user_id", "email", "role"] as const;
-    for (const field of stringFields) {
-      if (typeof data[field] !== "string" || data[field].trim().length === 0) {
-        req.log.warn({ reason: `missing_or_empty_${field}` }, "SSO response rejected");
-        res.redirect("/?auth_error=verify_failed");
-        return;
-      }
-    }
+    const identity = {
+      user_id: typeof data.user_id === "string" ? data.user_id.trim() : "",
+      email: typeof data.email === "string" ? data.email.trim() : "",
+      role: typeof data.role === "string" ? data.role.trim() : "",
+      is_guest: data.is_guest,
+    };
+    const guest = isGuestUser(identity);
+
     if ("valid" in data && data.valid !== true) {
       req.log.warn({ reason: "valid_flag_false" }, "SSO response rejected");
       res.redirect("/?auth_error=verify_failed");
       return;
     }
 
+    const stringFields = guest
+      ? (["user_id", "role"] as const)
+      : (["user_id", "email", "role"] as const);
+    for (const field of stringFields) {
+      if (identity[field].length === 0) {
+        req.log.warn({ reason: `missing_or_empty_${field}` }, "SSO response rejected");
+        res.redirect("/?auth_error=verify_failed");
+        return;
+      }
+    }
+
     const user = {
-      user_id: (data.user_id as string).trim(),
-      email: (data.email as string).trim(),
-      role: (data.role as string).trim(),
+      user_id: identity.user_id,
+      email: identity.email,
+      role: identity.role,
     };
 
     try {
@@ -87,6 +99,12 @@ router.get("/auth/sso/callback", async (req, res) => {
       }
       req.log.error({ err }, "SSO token persistence failed");
       res.redirect("/?auth_error=verify_failed");
+      return;
+    }
+
+    if (guest) {
+      req.log.info({ userId: user.user_id }, "Guest SSO login rejected");
+      res.redirect("/?auth_error=guest_not_supported");
       return;
     }
 

@@ -57942,6 +57942,32 @@ var health_default = router;
 // src/routes/auth.ts
 var import_express2 = __toESM(require_express2(), 1);
 import { createHash } from "node:crypto";
+
+// src/lib/access.ts
+var SHALOM_BYPASS = /* @__PURE__ */ new Set([
+  "justin.malkin@outlook.com",
+  "rechavambenshlomo@outlook.com",
+  "rechavambenshlomo@gmail.com",
+  "adam.kokesh@gmail.com"
+]);
+function isGuestUser(user) {
+  const email3 = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+  const role = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+  return user.is_guest === true || role === "guest" || email3.startsWith("__guest__");
+}
+async function canAccess(userId, email3, database = db, role) {
+  if (isGuestUser({ email: email3, role })) return false;
+  if (SHALOM_BYPASS.has(email3.trim().toLowerCase())) return true;
+  const [conversation] = await database.select({ id: conversationsTable.id }).from(conversationsTable).where(
+    or(
+      eq(conversationsTable.ownerUserId, userId),
+      eq(conversationsTable.partnerUserId, userId)
+    )
+  ).limit(1);
+  return Boolean(conversation);
+}
+
+// src/routes/auth.ts
 var router2 = (0, import_express2.Router)();
 function saveSession(req, res, onSuccess) {
   req.session.save((err) => {
@@ -57969,23 +57995,30 @@ router2.get("/auth/sso/callback", async (req, res) => {
       return;
     }
     const data = await response.json();
-    const stringFields = ["user_id", "email", "role"];
-    for (const field of stringFields) {
-      if (typeof data[field] !== "string" || data[field].trim().length === 0) {
-        req.log.warn({ reason: `missing_or_empty_${field}` }, "SSO response rejected");
-        res.redirect("/?auth_error=verify_failed");
-        return;
-      }
-    }
+    const identity = {
+      user_id: typeof data.user_id === "string" ? data.user_id.trim() : "",
+      email: typeof data.email === "string" ? data.email.trim() : "",
+      role: typeof data.role === "string" ? data.role.trim() : "",
+      is_guest: data.is_guest
+    };
+    const guest = isGuestUser(identity);
     if ("valid" in data && data.valid !== true) {
       req.log.warn({ reason: "valid_flag_false" }, "SSO response rejected");
       res.redirect("/?auth_error=verify_failed");
       return;
     }
+    const stringFields = guest ? ["user_id", "role"] : ["user_id", "email", "role"];
+    for (const field of stringFields) {
+      if (identity[field].length === 0) {
+        req.log.warn({ reason: `missing_or_empty_${field}` }, "SSO response rejected");
+        res.redirect("/?auth_error=verify_failed");
+        return;
+      }
+    }
     const user = {
-      user_id: data.user_id.trim(),
-      email: data.email.trim(),
-      role: data.role.trim()
+      user_id: identity.user_id,
+      email: identity.email,
+      role: identity.role
     };
     try {
       const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -58009,6 +58042,11 @@ router2.get("/auth/sso/callback", async (req, res) => {
       }
       req.log.error({ err }, "SSO token persistence failed");
       res.redirect("/?auth_error=verify_failed");
+      return;
+    }
+    if (guest) {
+      req.log.info({ userId: user.user_id }, "Guest SSO login rejected");
+      res.redirect("/?auth_error=guest_not_supported");
       return;
     }
     req.session.user = user;
@@ -58079,32 +58117,14 @@ var auth_default = router2;
 
 // src/routes/member.ts
 var import_express3 = __toESM(require_express2(), 1);
-
-// src/lib/access.ts
-var SHALOM_BYPASS = /* @__PURE__ */ new Set([
-  "justin.malkin@outlook.com",
-  "rechavambenshlomo@outlook.com",
-  "rechavambenshlomo@gmail.com",
-  "adam.kokesh@gmail.com"
-]);
-async function canAccess(userId, email3, database = db) {
-  if (SHALOM_BYPASS.has(email3.trim().toLowerCase())) return true;
-  const [conversation] = await database.select({ id: conversationsTable.id }).from(conversationsTable).where(
-    or(
-      eq(conversationsTable.ownerUserId, userId),
-      eq(conversationsTable.partnerUserId, userId)
-    )
-  ).limit(1);
-  return Boolean(conversation);
-}
-
-// src/routes/member.ts
 var router3 = (0, import_express3.Router)();
 router3.get("/member/status", async (req, res) => {
   if (req.session.user) {
     const access = await canAccess(
       req.session.user.user_id,
-      req.session.user.email
+      req.session.user.email,
+      db,
+      req.session.user.role
     );
     res.json({
       authenticated: true,
@@ -63116,9 +63136,14 @@ var CreateMessageBody = external_exports2.object({
   text: external_exports2.string().min(1)
 });
 function requireAuth(req, res) {
-  const userId = req.session?.user?.user_id;
+  const user = req.session?.user;
+  const userId = user?.user_id;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  if (isGuestUser(user)) {
+    res.status(403).json({ error: "Forbidden" });
     return null;
   }
   return userId;
@@ -63137,7 +63162,7 @@ router4.post("/conversations", async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const access = await canAccess(userId, req.session.user.email);
+  const access = await canAccess(userId, req.session.user.email, db, req.session.user.role);
   if (!access) {
     res.status(403).json({ error: "Forbidden" });
     return;

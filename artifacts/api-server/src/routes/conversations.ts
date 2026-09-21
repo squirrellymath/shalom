@@ -6,7 +6,7 @@ import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { insertMessage, verifyChain } from "../lib/message-chain";
 import { decryptText } from "../lib/crypto";
-import { canAccess } from "../lib/access";
+import { canAccess, isGuestUser } from "../lib/access";
 
 const router: IRouter = Router();
 
@@ -23,9 +23,14 @@ const CreateMessageBody = z.object({
 });
 
 function requireAuth(req: any, res: any): string | null {
-  const userId = req.session?.user?.user_id;
+  const user = req.session?.user;
+  const userId = user?.user_id;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  if (isGuestUser(user)) {
+    res.status(403).json({ error: "Forbidden" });
     return null;
   }
   return userId;
@@ -54,7 +59,7 @@ router.post("/conversations", async (req, res): Promise<void> => {
     return;
   }
 
-  const access = await canAccess(userId, req.session.user!.email);
+  const access = await canAccess(userId, req.session.user!.email, db, req.session.user!.role);
   if (!access) {
     res.status(403).json({ error: "Forbidden" });
     return;

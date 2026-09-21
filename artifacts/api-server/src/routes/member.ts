@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { db } from "@workspace/db";
 import { canAccess } from "../lib/access";
 
 const router = Router();
@@ -8,6 +9,8 @@ router.get("/member/status", async (req, res): Promise<void> => {
     const access = await canAccess(
       req.session.user.user_id,
       req.session.user.email,
+      db,
+      req.session.user.role,
     );
     res.json({
       authenticated: true,

@@ -148,6 +148,7 @@ function readUrlMessage(): string | null {
   const authMessages: Record<string, string> = {
     missing_token: "Sign-in could not start because the SSO token was missing.",
     verify_failed: "Sign-in could not be verified. Please try again.",
+    guest_not_supported: "Shalom needs a signed-in Bridget account with an email. Guest sign-in can't start or join a conversation -- please sign in with email or Google.",
     token_reused: "That sign-in link has already been used. Please start again.",
     session_save_failed: "Sign-in could not be saved. Please try again.",
     session_destroy_failed: "Signing out could not be completed. Please try again.",

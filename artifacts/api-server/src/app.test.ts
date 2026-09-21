@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const anthropicCreate = vi.hoisted(() => vi.fn());
+const testSessions = vi.hoisted(() => new Map<string, any>());
 
 vi.mock("@workspace/db", async () => import("./test-db"));
 vi.mock("@workspace/integrations-anthropic-ai", () => ({
@@ -11,17 +12,16 @@ vi.mock("@workspace/integrations-anthropic-ai", () => ({
 }));
 vi.mock("connect-pg-simple", async () => {
   const session = await import("express-session");
-  const sessions = new Map<string, unknown>();
   class TestStore extends session.Store {
     get(sid: string, callback: (err: any, session?: any) => void) {
-      callback(null, sessions.get(sid));
+      callback(null, testSessions.get(sid));
     }
     set(sid: string, value: unknown, callback: (err?: any) => void) {
-      sessions.set(sid, value);
+      testSessions.set(sid, value);
       callback();
     }
     destroy(sid: string, callback: (err?: any) => void) {
-      sessions.delete(sid);
+      testSessions.delete(sid);
       callback();
     }
   }
@@ -64,6 +64,7 @@ async function signedIn(response = validSsoResponse) {
 }
 
 beforeEach(async () => {
+  testSessions.clear();
   await pool.query("DELETE FROM used_sso_tokens");
   await pool.query("DELETE FROM invites");
   await pool.query("DELETE FROM messages");
@@ -117,6 +118,75 @@ describe("SSO callback", () => {
     await agent.get("/member/status").expect(200).expect((res) => {
       expect(res.body.authenticated).toBe(true);
     });
+  });
+
+  it("rejects a Bridget guest without creating a session", async () => {
+    const agent = request.agent(app);
+    mockSso({ user_id: "guest-1", email: "", role: "guest", is_guest: true });
+    await agent
+      .get("/auth/sso/callback?token=guest-no-invite")
+      .expect(302)
+      .expect("Location", "/?auth_error=guest_not_supported");
+    await agent.get("/member/status").expect(200).expect((res) => {
+      expect(res.body).toEqual({ authenticated: false, canAccess: false });
+    });
+    expect(await db.select().from(usedSsoTokensTable)).toHaveLength(1);
+  });
+
+  it("rejects a Bridget guest with a pending invite without consuming it", async () => {
+    const owner = await signedIn();
+    const convo = await owner.post("/conversations").send({ partnerName: "Partner" }).expect(201);
+    const invite = await owner.post(`/conversations/${convo.body.id}/invite`).expect(201);
+    const token = invite.body.inviteUrl.split("/").pop();
+    const guest = request.agent(app);
+
+    await guest.get(`/invite/${token}`).expect(302);
+    mockSso({ user_id: "guest-2", email: "", role: "guest", is_guest: true });
+    await guest
+      .get("/auth/sso/callback?token=guest-pending-invite")
+      .expect(302)
+      .expect("Location", "/?auth_error=guest_not_supported");
+
+    const [inviteRow] = await db.select().from(invitesTable);
+    const [conversationRow] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, convo.body.id));
+    expect(inviteRow.status).toBe("pending");
+    expect(conversationRow.partnerUserId).toBeNull();
+  });
+
+  it("rejects role guest even without is_guest", async () => {
+    mockSso({ user_id: "guest-3", email: "", role: "guest" });
+    await request(app)
+      .get("/auth/sso/callback?token=role-guest")
+      .expect(302)
+      .expect("Location", "/?auth_error=guest_not_supported");
+  });
+
+  it("rejects legacy __guest__ email even without is_guest", async () => {
+    mockSso({ user_id: "guest-4", email: "__guest__x", role: "free" });
+    await request(app)
+      .get("/auth/sso/callback?token=legacy-guest")
+      .expect(302)
+      .expect("Location", "/?auth_error=guest_not_supported");
+  });
+
+  it("blocks an existing guest session at the access check", async () => {
+    const agent = await signedIn();
+    for (const session of testSessions.values()) {
+      session.user.email = "__guest__existing";
+      session.user.role = "free";
+    }
+    await agent.get("/member/status").expect(200).expect((res) => {
+      expect(res.body.authenticated).toBe(true);
+      expect(res.body.canAccess).toBe(false);
+    });
+    await agent
+      .post("/conversations")
+      .send({ partnerName: "Blocked partner" })
+      .expect(403)
+      .expect({ error: "Forbidden" });
   });
 
   it("rejects valid false", async () => {
