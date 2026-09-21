@@ -7,6 +7,11 @@ import NotFound from "@/pages/not-found";
 import MemberHome from "@/pages/member-home";
 
 const queryClient = new QueryClient();
+type UrlMessage = {
+  message: string;
+  reason?: string;
+  detail?: string;
+};
 
 function Home() {
   return (
@@ -109,6 +114,8 @@ function Router() {
       const url = new URL(window.location.href);
       url.searchParams.delete("auth_error");
       url.searchParams.delete("invite_error");
+      url.searchParams.delete("reason");
+      url.searchParams.delete("detail");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
   }, [urlMessage]);
@@ -126,7 +133,13 @@ function Router() {
     <>
       {urlMessage && (
         <div role="alert" className="fixed top-0 left-1/2 z-40 -translate-x-1/2 mt-3 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm text-stone-700 shadow-sm">
-          {urlMessage}
+          <div>{urlMessage.message}</div>
+          {urlMessage.reason && (
+            <div className="mt-1 text-xs text-stone-500">
+              Reason: {urlMessage.reason}
+              {urlMessage.detail ? ` — ${urlMessage.detail}` : ""}
+            </div>
+          )}
         </div>
       )}
       <Switch>
@@ -143,7 +156,7 @@ function Router() {
   );
 }
 
-function readUrlMessage(): string | null {
+function readUrlMessage(): UrlMessage | null {
   const url = new URL(window.location.href);
   const authMessages: Record<string, string> = {
     missing_token: "Sign-in could not start because the SSO token was missing.",
@@ -163,9 +176,15 @@ function readUrlMessage(): string | null {
   };
   const authError = url.searchParams.get("auth_error");
   const inviteError = url.searchParams.get("invite_error");
-  return (authError && authMessages[authError]) ||
+  const message = (authError && authMessages[authError]) ||
     (inviteError && inviteMessages[inviteError]) ||
     null;
+  if (!message) return null;
+  return {
+    message,
+    reason: authError ? url.searchParams.get("reason") ?? undefined : undefined,
+    detail: authError ? url.searchParams.get("detail") ?? undefined : undefined,
+  };
 }
 
 function App() {

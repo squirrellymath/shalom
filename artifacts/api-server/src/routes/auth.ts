@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response as ExpressResponse } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import {
@@ -7,20 +7,53 @@ import {
   conversationsTable,
   usedSsoTokensTable,
 } from "@workspace/db";
-import { getGuestCondition, isGuestUser } from "../lib/access";
+import { getGuestCondition } from "../lib/access";
 
 const router = Router();
+const BRIDGET_LOGOUT_URL = "https://bridget.fyi/auth/sso/logout";
+const SHALOM_URL = "https://shalom.fyi";
 
 function emailDomain(email: string): string | null {
   const at = email.lastIndexOf("@");
   return at >= 0 && at < email.length - 1 ? email.slice(at + 1).toLowerCase() : null;
 }
 
-function saveSession(req: Request, res: Response, onSuccess: () => void) {
+function truncateDetail(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const detail = value.trim();
+  return detail ? detail.slice(0, 80) : undefined;
+}
+
+async function readBridgetErrorDetail(response: globalThis.Response): Promise<string | undefined> {
+  try {
+    const body = await response.json() as unknown as Record<string, unknown>;
+    return truncateDetail(body.detail);
+  } catch {
+    return undefined;
+  }
+}
+
+function errorPath(
+  authError: string,
+  reason: string,
+  detail?: string,
+): string {
+  const params = new URLSearchParams({ auth_error: authError, reason });
+  if (detail) params.set("detail", detail);
+  return `/?${params.toString()}`;
+}
+
+function bridgetLogoutRedirect(path: string): string {
+  const url = new URL(BRIDGET_LOGOUT_URL);
+  url.searchParams.set("next", `${SHALOM_URL}${path}`);
+  return url.toString();
+}
+
+function saveSession(req: Request, res: ExpressResponse, onSuccess: () => void) {
   req.session.save((err) => {
     if (err) {
       req.log.error({ err }, "Session save failed");
-      res.redirect("/?auth_error=session_save_failed");
+      res.redirect(errorPath("session_save_failed", "session_save_failed"));
       return;
     }
     onSuccess();
@@ -30,7 +63,7 @@ function saveSession(req: Request, res: Response, onSuccess: () => void) {
 router.get("/auth/sso/callback", async (req, res) => {
   const token = typeof req.query.sso_token === "string" ? req.query.sso_token :
     typeof req.query.token === "string" ? req.query.token : null;
-  if (!token) return res.redirect("/?auth_error=missing_token");
+  if (!token) return res.redirect(errorPath("missing_token", "missing_token"));
   try {
     const verifyUrl =
       `https://bridget.fyi/auth/sso/verify?token=${encodeURIComponent(token)}`;
@@ -40,8 +73,9 @@ router.get("/auth/sso/callback", async (req, res) => {
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) {
+      const detail = await readBridgetErrorDetail(response);
       req.log.warn({ statusCode: response.status }, "SSO verification rejected");
-      res.redirect("/?auth_error=verify_failed");
+      res.redirect(errorPath("verify_failed", `bridget_${response.status}`, detail));
       return;
     }
 
@@ -65,7 +99,11 @@ router.get("/auth/sso/callback", async (req, res) => {
 
     if ("valid" in data && data.valid !== true) {
       req.log.warn({ reason: "valid_flag_false" }, "SSO response rejected");
-      res.redirect("/?auth_error=verify_failed");
+      res.redirect(errorPath(
+        "verify_failed",
+        `bridget_${response.status}`,
+        truncateDetail(data.detail),
+      ));
       return;
     }
 
@@ -75,7 +113,7 @@ router.get("/auth/sso/callback", async (req, res) => {
     for (const field of stringFields) {
       if (identity[field].length === 0) {
         req.log.warn({ reason: `missing_or_empty_${field}` }, "SSO response rejected");
-        res.redirect("/?auth_error=verify_failed");
+        res.redirect(errorPath("verify_failed", `missing_or_empty_${field}`));
         return;
       }
     }
@@ -108,17 +146,17 @@ router.get("/auth/sso/callback", async (req, res) => {
         .toLowerCase();
       if (persistenceErrorText.includes("23505") || persistenceErrorText.includes("duplicate key")) {
         req.log.warn({ reason: "token_reused" }, "SSO token rejected");
-        res.redirect("/?auth_error=token_reused");
+        res.redirect(errorPath("token_reused", "token_reused"));
         return;
       }
       req.log.error({ err }, "SSO token persistence failed");
-      res.redirect("/?auth_error=verify_failed");
+      res.redirect(errorPath("verify_failed", "token_persistence_failed"));
       return;
     }
 
     if (guest) {
       req.log.info({ userId: user.user_id }, "Guest SSO login rejected");
-      res.redirect("/?auth_error=guest_not_supported");
+      res.redirect(bridgetLogoutRedirect(errorPath("guest_not_supported", guestCondition)));
       return;
     }
 
@@ -211,7 +249,7 @@ router.get("/auth/sso/callback", async (req, res) => {
     saveSession(req, res, () => res.redirect("/"));
   } catch (err) {
     req.log.error({ err }, "SSO callback failed");
-    res.redirect("/?auth_error=verify_failed");
+    res.redirect(errorPath("verify_failed", "callback_failed"));
   }
 });
 

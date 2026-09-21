@@ -57,6 +57,19 @@ function mockSso(response: unknown = validSsoResponse) {
   );
 }
 
+function mockSsoError(status: number, body: unknown) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        }),
+    ),
+  );
+}
+
 async function signedIn(response = validSsoResponse) {
   mockSso(response);
   const agent = request.agent(app);
@@ -138,11 +151,23 @@ describe("SSO callback", () => {
     await agent
       .get("/auth/sso/callback?token=guest-no-invite")
       .expect(302)
-      .expect("Location", "/?auth_error=guest_not_supported");
+      .expect(
+        "Location",
+        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Dis_guest",
+      );
     await agent.get("/member/status").expect(200).expect((res) => {
       expect(res.body).toEqual({ authenticated: false, canAccess: false });
     });
     expect(await db.select().from(usedSsoTokensTable)).toHaveLength(1);
+
+    mockSso({ user_id: "real-1", email: "real@example.com", role: "member" });
+    await agent
+      .get("/auth/sso/callback?token=real-after-guest")
+      .expect(302)
+      .expect("Location", "/");
+    await agent.get("/member/status").expect(200).expect((res) => {
+      expect(res.body.authenticated).toBe(true);
+    });
   });
 
   it("rejects a Bridget guest with a pending invite without consuming it", async () => {
@@ -157,7 +182,10 @@ describe("SSO callback", () => {
     await guest
       .get("/auth/sso/callback?token=guest-pending-invite")
       .expect(302)
-      .expect("Location", "/?auth_error=guest_not_supported");
+      .expect(
+        "Location",
+        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Dis_guest",
+      );
 
     const [inviteRow] = await db.select().from(invitesTable);
     const [conversationRow] = await db
@@ -166,6 +194,19 @@ describe("SSO callback", () => {
       .where(eq(conversationsTable.id, convo.body.id));
     expect(inviteRow.status).toBe("pending");
     expect(conversationRow.partnerUserId).toBeNull();
+
+    mockSso({ user_id: "real-2", email: "real@example.com", role: "member" });
+    await guest
+      .get("/auth/sso/callback?token=real-after-invite-guest")
+      .expect(302)
+      .expect("Location", `/?joined=${convo.body.id}`);
+    const [acceptedInvite] = await db.select().from(invitesTable);
+    const [joinedConversation] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, convo.body.id));
+    expect(acceptedInvite.status).toBe("accepted");
+    expect(joinedConversation.partnerUserId).toBe("real-2");
   });
 
   it("rejects role guest even without is_guest", async () => {
@@ -173,7 +214,10 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=role-guest")
       .expect(302)
-      .expect("Location", "/?auth_error=guest_not_supported");
+      .expect(
+        "Location",
+        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Drole_guest",
+      );
   });
 
   it("rejects legacy __guest__ email even without is_guest", async () => {
@@ -181,7 +225,10 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=legacy-guest")
       .expect(302)
-      .expect("Location", "/?auth_error=guest_not_supported");
+      .expect(
+        "Location",
+        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Demail_prefix",
+      );
   });
 
   it("blocks an existing guest session at the access check", async () => {
@@ -206,7 +253,18 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=bad-response")
       .expect(302)
-      .expect("Location", "/?auth_error=verify_failed");
+      .expect("Location", "/?auth_error=verify_failed&reason=bridget_200");
+  });
+
+  it("reports Bridget verify status and a truncated detail", async () => {
+    mockSsoError(401, { detail: "The Bridget session is still a guest account and cannot be used here." });
+    await request(app)
+      .get("/auth/sso/callback?token=bridget-error")
+      .expect(302)
+      .expect(
+        "Location",
+        "/?auth_error=verify_failed&reason=bridget_401&detail=The+Bridget+session+is+still+a+guest+account+and+cannot+be+used+here.",
+      );
   });
 
   it("rejects a missing email", async () => {
@@ -214,7 +272,7 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=missing-email")
       .expect(302)
-      .expect("Location", "/?auth_error=verify_failed");
+      .expect("Location", "/?auth_error=verify_failed&reason=missing_or_empty_email");
   });
 
   it("rejects a replayed token before creating a second session", async () => {
@@ -226,7 +284,7 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=replay-token")
       .expect(302)
-      .expect("Location", "/?auth_error=token_reused");
+      .expect("Location", "/?auth_error=token_reused&reason=token_reused");
   });
 });
 
