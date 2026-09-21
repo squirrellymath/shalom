@@ -57950,10 +57950,16 @@ var SHALOM_BYPASS = /* @__PURE__ */ new Set([
   "rechavambenshlomo@gmail.com",
   "adam.kokesh@gmail.com"
 ]);
-function isGuestUser(user) {
-  const email3 = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+function getGuestCondition(user) {
+  if (user.is_guest === true) return "is_guest";
   const role = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
-  return user.is_guest === true || role === "guest" || email3.startsWith("__guest__");
+  if (role === "guest") return "role_guest";
+  const email3 = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+  if (email3.startsWith("__guest__")) return "email_prefix";
+  return "none";
+}
+function isGuestUser(user) {
+  return getGuestCondition(user) !== "none";
 }
 async function canAccess(userId, email3, database = db, role) {
   if (isGuestUser({ email: email3, role })) return false;
@@ -57969,6 +57975,10 @@ async function canAccess(userId, email3, database = db, role) {
 
 // src/routes/auth.ts
 var router2 = (0, import_express2.Router)();
+function emailDomain(email3) {
+  const at = email3.lastIndexOf("@");
+  return at >= 0 && at < email3.length - 1 ? email3.slice(at + 1).toLowerCase() : null;
+}
 function saveSession(req, res, onSuccess) {
   req.session.save((err) => {
     if (err) {
@@ -58001,7 +58011,15 @@ router2.get("/auth/sso/callback", async (req, res) => {
       role: typeof data.role === "string" ? data.role.trim() : "",
       is_guest: data.is_guest
     };
-    const guest = isGuestUser(identity);
+    const guestCondition = getGuestCondition(identity);
+    const guest = guestCondition !== "none";
+    req.log.info({
+      guest_condition: guestCondition,
+      user_id: identity.user_id,
+      role: identity.role,
+      email_empty: identity.email.length === 0,
+      email_domain: emailDomain(identity.email)
+    }, "SSO identity received");
     if ("valid" in data && data.valid !== true) {
       req.log.warn({ reason: "valid_flag_false" }, "SSO response rejected");
       res.redirect("/?auth_error=verify_failed");
