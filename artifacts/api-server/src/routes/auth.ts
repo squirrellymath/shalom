@@ -10,8 +10,6 @@ import {
 import { getGuestCondition } from "../lib/access";
 
 const router = Router();
-const BRIDGET_LOGOUT_URL = "https://bridget.fyi/auth/sso/logout";
-const SHALOM_URL = "https://shalom.fyi";
 
 function emailDomain(email: string): string | null {
   const at = email.lastIndexOf("@");
@@ -41,12 +39,6 @@ function errorPath(
   const params = new URLSearchParams({ auth_error: authError, reason });
   if (detail) params.set("detail", detail);
   return `/?${params.toString()}`;
-}
-
-function bridgetLogoutRedirect(path: string): string {
-  const url = new URL(BRIDGET_LOGOUT_URL);
-  url.searchParams.set("next", `${SHALOM_URL}${path}`);
-  return url.toString();
 }
 
 function saveSession(req: Request, res: ExpressResponse, onSuccess: () => void) {
@@ -156,7 +148,7 @@ router.get("/auth/sso/callback", async (req, res) => {
 
     if (guest) {
       req.log.info({ userId: user.user_id }, "Guest SSO login rejected");
-      res.redirect(bridgetLogoutRedirect(errorPath("guest_not_supported", guestCondition)));
+      res.redirect(errorPath("guest_not_supported", guestCondition));
       return;
     }
 

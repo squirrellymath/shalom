@@ -151,10 +151,7 @@ describe("SSO callback", () => {
     await agent
       .get("/auth/sso/callback?token=guest-no-invite")
       .expect(302)
-      .expect(
-        "Location",
-        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Dis_guest",
-      );
+      .expect("Location", "/?auth_error=guest_not_supported&reason=is_guest");
     await agent.get("/member/status").expect(200).expect((res) => {
       expect(res.body).toEqual({ authenticated: false, canAccess: false });
     });
@@ -182,10 +179,7 @@ describe("SSO callback", () => {
     await guest
       .get("/auth/sso/callback?token=guest-pending-invite")
       .expect(302)
-      .expect(
-        "Location",
-        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Dis_guest",
-      );
+      .expect("Location", "/?auth_error=guest_not_supported&reason=is_guest");
 
     const [inviteRow] = await db.select().from(invitesTable);
     const [conversationRow] = await db
@@ -214,10 +208,7 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=role-guest")
       .expect(302)
-      .expect(
-        "Location",
-        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Drole_guest",
-      );
+      .expect("Location", "/?auth_error=guest_not_supported&reason=role_guest");
   });
 
   it("rejects legacy __guest__ email even without is_guest", async () => {
@@ -225,10 +216,7 @@ describe("SSO callback", () => {
     await request(app)
       .get("/auth/sso/callback?token=legacy-guest")
       .expect(302)
-      .expect(
-        "Location",
-        "https://bridget.fyi/auth/sso/logout?next=https%3A%2F%2Fshalom.fyi%2F%3Fauth_error%3Dguest_not_supported%26reason%3Demail_prefix",
-      );
+      .expect("Location", "/?auth_error=guest_not_supported&reason=email_prefix");
   });
 
   it("blocks an existing guest session at the access check", async () => {
