@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { eq, and, or, sql } from "drizzle-orm";
 import { db, conversationsTable, messagesTable, invitesTable } from "@workspace/db";
 import crypto from "node:crypto";
@@ -34,6 +34,15 @@ function requireAuth(req: any, res: any): string | null {
     return null;
   }
   return userId;
+}
+
+function validateUuidParam(req: Request, res: Response, next: NextFunction): void {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!z.string().uuid().safeParse(id).success) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  next();
 }
 
 router.get("/conversations", async (req, res): Promise<void> => {
@@ -130,7 +139,7 @@ const UpdateTopicBody = z.object({
   topic: z.string().trim().max(200),
 });
 
-router.patch("/conversations/:id", async (req, res): Promise<void> => {
+router.patch("/conversations/:id", validateUuidParam, async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
@@ -161,7 +170,7 @@ router.patch("/conversations/:id", async (req, res): Promise<void> => {
   res.json(convo);
 });
 
-router.get("/conversations/:id/messages", async (req, res): Promise<void> => {
+router.get("/conversations/:id/messages", validateUuidParam, async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
@@ -186,7 +195,7 @@ router.get("/conversations/:id/messages", async (req, res): Promise<void> => {
   res.json(messages.map((m) => ({ ...m, text: decryptText(m.text) })));
 });
 
-router.get("/conversations/:id/messages/verify", async (req, res): Promise<void> => {
+router.get("/conversations/:id/messages/verify", validateUuidParam, async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
@@ -206,7 +215,7 @@ router.get("/conversations/:id/messages/verify", async (req, res): Promise<void>
   res.json(result);
 });
 
-router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
+router.post("/conversations/:id/messages", validateUuidParam, async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
@@ -288,7 +297,7 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
   res.status(201).json({ message, bridgetMessage, mediationFailed });
 });
 
-router.post("/conversations/:id/invite", async (req, res): Promise<void> => {
+router.post("/conversations/:id/invite", validateUuidParam, async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 

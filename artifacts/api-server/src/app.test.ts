@@ -290,6 +290,48 @@ describe("SSO callback", () => {
 });
 
 describe("access gate and conversation creation", () => {
+  it("returns 404 for a malformed conversation id on topic updates", async () => {
+    const agent = await signedIn();
+    await agent
+      .patch("/conversations/not-a-uuid")
+      .send({ topic: "Updated topic" })
+      .expect(404)
+      .expect({ error: "Not found" });
+  });
+
+  it("returns 404 for a malformed conversation id when listing messages", async () => {
+    const agent = await signedIn();
+    await agent
+      .get("/conversations/not-a-uuid/messages")
+      .expect(404)
+      .expect({ error: "Not found" });
+  });
+
+  it("returns 404 for a malformed conversation id when verifying messages", async () => {
+    const agent = await signedIn();
+    await agent
+      .get("/conversations/not-a-uuid/messages/verify")
+      .expect(404)
+      .expect({ error: "Not found" });
+  });
+
+  it("returns 404 for a malformed conversation id when posting messages", async () => {
+    const agent = await signedIn();
+    await agent
+      .post("/conversations/not-a-uuid/messages")
+      .send({ text: "Hello" })
+      .expect(404)
+      .expect({ error: "Not found" });
+  });
+
+  it("returns 404 for a malformed conversation id when creating invites", async () => {
+    const agent = await signedIn();
+    await agent
+      .post("/conversations/not-a-uuid/invite")
+      .expect(404)
+      .expect({ error: "Not found" });
+  });
+
   it("blocks unallowlisted users and allows conversation participants", async () => {
     const agent = await signedIn({
       ...validSsoResponse,

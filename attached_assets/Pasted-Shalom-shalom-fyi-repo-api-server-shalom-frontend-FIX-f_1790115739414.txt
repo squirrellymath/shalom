@@ -1,0 +1,28 @@
+Shalom (shalom.fyi repo -- api-server + shalom frontend)
+
+**FIX four open items. Commit each locally; do NOT push. Do not connect to production.**
+
+**1. Remove the temporary test file.** `artifacts/api-server/src/reason-repro.temp.test.ts`, committed in `9334866`, is investigation scaffolding. Delete it, and delete any other `*.temp.test.ts` left in the repository. List every file removed.
+
+**2. Malformed conversation id returns 500 instead of 404.**
+- Reproduce first: signed in, `GET /conversations/not-a-uuid/messages/verify` returns 500. Paste the output.
+- List every route that takes a UUID path parameter, derived from the router, not by hand.
+- In one shared place, validate each such parameter as a UUID before any query runs. A malformed value returns 404 `{"error":"Not found"}`, the same answer a real conversation the caller can't access gets.
+- Add a test per listed route with a malformed id. Paste the step-1 case now returning 404.
+
+**3. Tests for Bridget's other verify refusals.** The callback's reason code is tested for 401 and 500 only. Add tests with mocked responses for:
+- 410, detail "Invalid or expired SSO token." (browser-form refusal)
+- 503, detail "SSO not configured on this server." (browser-form refusal)
+- 403, detail "Your account needs administrator attention. Please contact support." (Bridget's role refusal, which comes from the identity lookup rather than the browser form; the test proves Shalom displays it if it arrives)
+
+Each must redirect to `/?auth_error=verify_failed&reason=bridget_<status>&detail=<detail>`, with the detail truncated at 80 characters. Paste each result.
+
+**4. Boot check on `SESSION_SECRET` strength.**
+- First, report the length of `SESSION_SECRET` in this workspace with `printf '%s' "${#SESSION_SECRET}"`. Never print the value. State plainly that this is the workspace value and that Railway's value is unknown from here.
+- The server already refuses to start when the variable is missing. Add: the server refuses to start when the value equals the old fallback string `shalom-secret`, and logs a warning, without refusing, when the value is shorter than 32 characters. A length refusal would take the live site down on the next deploy, so length stays a warning.
+- The message states which condition fired and never prints the value.
+- Add tests for the fallback string (refuses), a short value (starts, warns) and a valid value (starts, no warning).
+
+**Report:** for each item, the files changed (path:line), the before and after output, the test names and results, the total test count, and the commit hash.
+
+Before ending the turn, post the raw output of every action run in this turn.

@@ -57975,8 +57975,6 @@ async function canAccess(userId, email3, database = db, role) {
 
 // src/routes/auth.ts
 var router2 = (0, import_express2.Router)();
-var BRIDGET_LOGOUT_URL = "https://bridget.fyi/auth/sso/logout";
-var SHALOM_URL = "https://shalom.fyi";
 function emailDomain(email3) {
   const at = email3.lastIndexOf("@");
   return at >= 0 && at < email3.length - 1 ? email3.slice(at + 1).toLowerCase() : null;
@@ -57998,11 +57996,6 @@ function errorPath(authError, reason, detail) {
   const params = new URLSearchParams({ auth_error: authError, reason });
   if (detail) params.set("detail", detail);
   return `/?${params.toString()}`;
-}
-function bridgetLogoutRedirect(path4) {
-  const url2 = new URL(BRIDGET_LOGOUT_URL);
-  url2.searchParams.set("next", `${SHALOM_URL}${path4}`);
-  return url2.toString();
 }
 function saveSession(req, res, onSuccess) {
   req.session.save((err) => {
@@ -58094,7 +58087,7 @@ router2.get("/auth/sso/callback", async (req, res) => {
     }
     if (guest) {
       req.log.info({ userId: user.user_id }, "Guest SSO login rejected");
-      res.redirect(bridgetLogoutRedirect(errorPath("guest_not_supported", guestCondition)));
+      res.redirect(errorPath("guest_not_supported", guestCondition));
       return;
     }
     req.session.user = user;
