@@ -7,6 +7,7 @@ import { pool } from "@workspace/db";
 import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { validateSessionSecret } from "./lib/session-secret";
 
 const app: Express = express();
 app.set("trust proxy", 1);
@@ -34,11 +35,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const PgSession = connectPgSimple(session);
-const sessionSecret = process.env["SESSION_SECRET"];
-
-if (!sessionSecret) {
-  throw new Error("SESSION_SECRET must be set before starting the API server.");
-}
+const sessionSecret = validateSessionSecret(
+  process.env["SESSION_SECRET"],
+  (message) => logger.warn(message),
+);
 
 app.use(session({
   store: new PgSession({
