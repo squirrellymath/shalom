@@ -208,16 +208,14 @@ router.get("/conversations/:id/messages", validateUuidParam, async (req, res): P
     );
   }
 
-  res.json({
-    messages: messages.map((m) => {
-      try {
-        return { ...m, text: decryptText(m.text) };
-      } catch {
-        return { ...m, text: "[message unavailable]" };
-      }
-    }),
-    verification,
-  });
+  res.set("X-Message-Chain-Verification", JSON.stringify(verification));
+  res.json(messages.map((m) => {
+    try {
+      return { ...m, text: decryptText(m.text) };
+    } catch {
+      return { ...m, text: "[message unavailable]" };
+    }
+  }));
 });
 
 router.get("/conversations/:id/messages/verify", validateUuidParam, async (req, res): Promise<void> => {

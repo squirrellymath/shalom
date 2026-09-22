@@ -450,6 +450,23 @@ describe("access gate and conversation creation", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("keeps the array body for old clients and exposes verification for new clients", async () => {
+    const agent = await signedIn();
+    const convo = await agent.post("/conversations").send({ partnerName: "Partner" }).expect(201);
+
+    const oldStyle = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
+    expect(Array.isArray(oldStyle.body)).toBe(true);
+    expect(oldStyle.body).toHaveLength(1);
+
+    const newStyleResponse = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
+    const newStyle = {
+      messages: newStyleResponse.body,
+      verification: JSON.parse(newStyleResponse.headers["x-message-chain-verification"]),
+    };
+    expect(newStyle.messages).toHaveLength(1);
+    expect(newStyle.verification).toEqual({ valid: true });
+  });
+
   it("returns messages and a broken sequence when load-time verification fails", async () => {
     const agent = await signedIn();
     const convo = await agent.post("/conversations").send({ partnerName: "Partner" }).expect(201);
@@ -459,9 +476,9 @@ describe("access gate and conversation creation", () => {
     );
 
     const response = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
-    expect(response.body.messages).toHaveLength(1);
-    expect(response.body.messages[0].text).toContain("I'm Bridget");
-    expect(response.body.verification).toEqual({
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].text).toContain("I'm Bridget");
+    expect(JSON.parse(response.headers["x-message-chain-verification"])).toEqual({
       valid: false,
       brokenAtSeq: 0,
     });
@@ -501,8 +518,8 @@ describe("access gate and conversation creation", () => {
     await db.insert(messagesTable).values(rows);
 
     const response = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
-    expect(response.body.messages).toHaveLength(1_001);
-    expect(response.body.verification).toEqual({
+    expect(response.body).toHaveLength(1_001);
+    expect(JSON.parse(response.headers["x-message-chain-verification"])).toEqual({
       valid: true,
       partial: true,
     });
@@ -593,8 +610,8 @@ describe("mediation and participant routes", () => {
     expect(response.body.message.text).toBe("Hello");
     expect(response.body.mediationFailed).toBe(true);
     const messages = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
-    expect(messages.body.messages.some((message: { text: string }) => message.text === "Hello")).toBe(true);
-    expect(messages.body.verification).toEqual({ valid: true });
+    expect(messages.body.some((message: { text: string }) => message.text === "Hello")).toBe(true);
+    expect(JSON.parse(messages.headers["x-message-chain-verification"])).toEqual({ valid: true });
   });
 
   it("keeps conversation-scoped participant checks on message routes", async () => {

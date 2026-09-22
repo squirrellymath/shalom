@@ -22,6 +22,33 @@ async function apiFetch(path: string, opts?: RequestInit) {
   return res.json();
 }
 
+function parseVerificationHeader(value: string | null): ChainVerification {
+  if (!value) throw new Error("Missing message chain verification result");
+  const parsed = JSON.parse(value) as unknown;
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    typeof (parsed as { valid?: unknown }).valid !== "boolean"
+  ) {
+    throw new Error("Invalid message chain verification result");
+  }
+  return parsed as ChainVerification;
+}
+
+async function fetchMessages(path: string): Promise<MessageLoadResult> {
+  const res = await fetch(path, { credentials: "include" });
+  if (res.status === 401) {
+    window.location.href = "/";
+    throw new Error("401");
+  }
+  if (!res.ok) throw new Error(`${res.status}`);
+  const messages = await res.json() as Message[];
+  return {
+    messages,
+    verification: parseVerificationHeader(res.headers.get("X-Message-Chain-Verification")),
+  };
+}
+
 export default function MemberHome({ email }: { email?: string }) {
   const [view, setView] = useState<"home" | "conversation">("home");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -85,7 +112,7 @@ export default function MemberHome({ email }: { email?: string }) {
     const interval = setInterval(async () => {
       if (document.hidden) return;
       try {
-        const data: MessageLoadResult = await apiFetch(`/conversations/${activeId}/messages`);
+        const data = await fetchMessages(`/conversations/${activeId}/messages`);
         setConversations((p) => p.map((c) => c.id === activeId
           ? { ...c, messages: data.messages, verification: data.verification }
           : c));
@@ -160,7 +187,7 @@ export default function MemberHome({ email }: { email?: string }) {
     setMessageLoading(true);
     setMessageError(false);
     try {
-      const data: MessageLoadResult = await apiFetch(`/conversations/${id}/messages`);
+      const data = await fetchMessages(`/conversations/${id}/messages`);
       setConversations((p) => p.map((c) => c.id === id
         ? { ...c, messages: data.messages, verification: data.verification }
         : c));
