@@ -4,7 +4,12 @@ import { db, conversationsTable, messagesTable, invitesTable } from "@workspace/
 import crypto from "node:crypto";
 import { z } from "zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { insertMessage, verifyChain } from "../lib/message-chain";
+import {
+  FULL_VERIFY_MESSAGE_LIMIT,
+  insertMessage,
+  verifyChain,
+  verifyMessageRows,
+} from "../lib/message-chain";
 import { decryptText } from "../lib/crypto";
 import { canAccess, isGuestUser } from "../lib/access";
 import {
@@ -190,7 +195,29 @@ router.get("/conversations/:id/messages", validateUuidParam, async (req, res): P
     .where(eq(messagesTable.conversationId, id))
     .orderBy(messagesTable.seq);
 
-  res.json(messages.map((m) => ({ ...m, text: decryptText(m.text) })));
+  const verification = verifyMessageRows(messages, {
+    partial: messages.length > FULL_VERIFY_MESSAGE_LIMIT,
+  });
+  if (!verification.valid) {
+    req.log.warn(
+      {
+        conversationId: id,
+        brokenAtSeq: verification.brokenAtSeq,
+      },
+      "Message chain verification failed",
+    );
+  }
+
+  res.json({
+    messages: messages.map((m) => {
+      try {
+        return { ...m, text: decryptText(m.text) };
+      } catch {
+        return { ...m, text: "[message unavailable]" };
+      }
+    }),
+    verification,
+  });
 });
 
 router.get("/conversations/:id/messages/verify", validateUuidParam, async (req, res): Promise<void> => {
@@ -215,6 +242,12 @@ router.get("/conversations/:id/messages/verify", validateUuidParam, async (req, 
   }
 
   const result = await verifyChain(id);
+  if (!result.valid) {
+    req.log.warn(
+      { conversationId: id, brokenAtSeq: result.brokenAtSeq },
+      "Message chain verification failed",
+    );
+  }
   res.json(result);
 });
 

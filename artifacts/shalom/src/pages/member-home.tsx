@@ -3,9 +3,12 @@ import { Plus, ArrowLeft, Clock, ShieldCheck, X, Sun, Moon } from "lucide-react"
 import { applyTheme, initTheme } from "@/lib/theme";
 
 type Message = { id: string; sender: string; text: string; createdAt: string };
+type ChainVerification = { valid: boolean; partial?: boolean; brokenAtSeq?: number };
+type MessageLoadResult = { messages: Message[]; verification: ChainVerification };
 type Conversation = {
   id: string; partnerName: string; partnerEmail?: string; topic?: string;
   mode: "witness" | "mediated"; updatedAt: string; messages?: Message[];
+  verification?: ChainVerification;
 };
 type MessageResult = { message: Message; mediationFailed: boolean };
 
@@ -82,8 +85,10 @@ export default function MemberHome({ email }: { email?: string }) {
     const interval = setInterval(async () => {
       if (document.hidden) return;
       try {
-        const messages = await apiFetch(`/conversations/${activeId}/messages`);
-        setConversations((p) => p.map((c) => c.id === activeId ? { ...c, messages } : c));
+        const data: MessageLoadResult = await apiFetch(`/conversations/${activeId}/messages`);
+        setConversations((p) => p.map((c) => c.id === activeId
+          ? { ...c, messages: data.messages, verification: data.verification }
+          : c));
         setPollFailures(0);
         setConnectionLost(false);
       } catch {
@@ -155,8 +160,10 @@ export default function MemberHome({ email }: { email?: string }) {
     setMessageLoading(true);
     setMessageError(false);
     try {
-      const messages = await apiFetch(`/conversations/${id}/messages`);
-      setConversations((p) => p.map((c) => c.id === id ? { ...c, messages } : c));
+      const data: MessageLoadResult = await apiFetch(`/conversations/${id}/messages`);
+      setConversations((p) => p.map((c) => c.id === id
+        ? { ...c, messages: data.messages, verification: data.verification }
+        : c));
     } catch {
       setMessageError(true);
     } finally {
@@ -240,6 +247,7 @@ export default function MemberHome({ email }: { email?: string }) {
           messageError={messageError}
           onRetryMessages={() => openConvo(active.id)}
           connectionLost={connectionLost}
+           verification={active.verification}
         />
       ) : null}
       {modal && <NewModal onClose={() => setModal(false)} onCreate={create} />}
@@ -247,7 +255,7 @@ export default function MemberHome({ email }: { email?: string }) {
   );
 }
 
-function ConvoView({ convo, onBack, addMsg, email, updateTopic, messageLoading, messageError, onRetryMessages, connectionLost }: {
+export function ConvoView({ convo, onBack, addMsg, email, updateTopic, messageLoading, messageError, onRetryMessages, connectionLost, verification }: {
   convo: Conversation;
   onBack: () => void;
   addMsg: (id: string, text: string) => Promise<MessageResult | null>;
@@ -257,6 +265,7 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic, messageLoading, 
   messageError: boolean;
   onRetryMessages: () => void;
   connectionLost: boolean;
+  verification?: ChainVerification;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -402,6 +411,20 @@ function ConvoView({ convo, onBack, addMsg, email, updateTopic, messageLoading, 
       {mediationFailed && (
         <div role="status" className="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-center text-xs text-amber-700 dark:text-amber-300">
           Bridget couldn’t respond to that message.
+        </div>
+      )}
+      {verification && (!verification.valid || verification.partial) && (
+        <div
+          role={verification.valid ? "status" : "alert"}
+          className={`border-b px-4 py-2 text-center text-xs ${
+            verification.valid
+              ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-300"
+              : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300"
+          }`}
+        >
+          {verification.valid
+            ? "The recent record was checked; older messages still need a full verification."
+            : `Record verification failed at sequence ${verification.brokenAtSeq ?? "unknown"}. Messages remain visible.`}
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 max-w-2xl w-full mx-auto">

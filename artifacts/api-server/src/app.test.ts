@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getGuestCondition } from "./lib/access";
 import { decryptText } from "./lib/crypto";
+import { encryptText } from "./lib/crypto";
 
 const anthropicCreate = vi.hoisted(() => vi.fn());
 const testSessions = vi.hoisted(() => new Map<string, any>());
@@ -448,6 +449,64 @@ describe("access gate and conversation creation", () => {
     const rows = await db.select().from(messagesTable);
     expect(rows).toHaveLength(1);
   });
+
+  it("returns messages and a broken sequence when load-time verification fails", async () => {
+    const agent = await signedIn();
+    const convo = await agent.post("/conversations").send({ partnerName: "Partner" }).expect(201);
+    await pool.query(
+      "UPDATE messages SET hash = $1 WHERE conversation_id = $2 AND seq = $3",
+      ["tampered", convo.body.id, 0],
+    );
+
+    const response = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
+    expect(response.body.messages).toHaveLength(1);
+    expect(response.body.messages[0].text).toContain("I'm Bridget");
+    expect(response.body.verification).toEqual({
+      valid: false,
+      brokenAtSeq: 0,
+    });
+  });
+
+  it("marks load-time verification partial above the measured full-verification ceiling", async () => {
+    const agent = await signedIn();
+    const convo = await agent.post("/conversations").send({ partnerName: "Partner" }).expect(201);
+    let previousHash = convo.body.messages[0].hash;
+    const rows = [];
+    for (let seq = 1; seq <= 1_000; seq++) {
+      const text = `load verification message ${seq}`;
+      const createdAt = new Date(1_700_000_000_000 + seq);
+      const hash = crypto
+        .createHash("sha256")
+        .update([
+          previousHash,
+          convo.body.id,
+          String(seq),
+          "owner@example.com",
+          text,
+          createdAt.toISOString(),
+        ].join("\n"))
+        .digest("hex");
+      rows.push({
+        id: crypto.randomUUID(),
+        conversationId: convo.body.id,
+        seq,
+        sender: "owner@example.com",
+        text: encryptText(text),
+        prevHash: previousHash,
+        hash,
+        createdAt,
+      });
+      previousHash = hash;
+    }
+    await db.insert(messagesTable).values(rows);
+
+    const response = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
+    expect(response.body.messages).toHaveLength(1_001);
+    expect(response.body.verification).toEqual({
+      valid: true,
+      partial: true,
+    });
+  }, 20_000);
 });
 
 describe("invites", () => {
@@ -534,7 +593,8 @@ describe("mediation and participant routes", () => {
     expect(response.body.message.text).toBe("Hello");
     expect(response.body.mediationFailed).toBe(true);
     const messages = await agent.get(`/conversations/${convo.body.id}/messages`).expect(200);
-    expect(messages.body.some((message: { text: string }) => message.text === "Hello")).toBe(true);
+    expect(messages.body.messages.some((message: { text: string }) => message.text === "Hello")).toBe(true);
+    expect(messages.body.verification).toEqual({ valid: true });
   });
 
   it("keeps conversation-scoped participant checks on message routes", async () => {
