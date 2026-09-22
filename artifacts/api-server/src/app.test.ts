@@ -268,6 +268,41 @@ describe("SSO callback", () => {
       .expect("Location", "/?auth_error=verify_failed&reason=bridget_500");
   });
 
+  it("reports Bridget 410 status and the expired-token detail", async () => {
+    mockSsoError(410, { detail: "Invalid or expired SSO token." });
+    await request(app)
+      .get("/auth/sso/callback?token=bridget-expired-token")
+      .expect(302)
+      .expect(
+        "Location",
+        "/?auth_error=verify_failed&reason=bridget_410&detail=Invalid+or+expired+SSO+token.",
+      );
+  });
+
+  it("reports Bridget 503 status and the configuration detail", async () => {
+    mockSsoError(503, { detail: "SSO not configured on this server." });
+    await request(app)
+      .get("/auth/sso/callback?token=bridget-not-configured")
+      .expect(302)
+      .expect(
+        "Location",
+        "/?auth_error=verify_failed&reason=bridget_503&detail=SSO+not+configured+on+this+server.",
+      );
+  });
+
+  it("reports Bridget 403 status and the administrator-attention detail", async () => {
+    mockSsoError(403, {
+      detail: "Your account needs administrator attention. Please contact support.",
+    });
+    await request(app)
+      .get("/auth/sso/callback?token=bridget-role-refusal")
+      .expect(302)
+      .expect(
+        "Location",
+        "/?auth_error=verify_failed&reason=bridget_403&detail=Your+account+needs+administrator+attention.+Please+contact+support.",
+      );
+  });
+
   it("rejects a missing email", async () => {
     mockSso({ valid: true, user_id: "owner-1", role: "member" });
     await request(app)
