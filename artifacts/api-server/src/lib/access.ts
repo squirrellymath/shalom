@@ -1,5 +1,5 @@
-import { and, eq, or } from "drizzle-orm";
-import { db, conversationsTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { db, participantsTable } from "@workspace/db";
 
 export const SHALOM_BYPASS = new Set([
   "justin.malkin@outlook.com",
@@ -46,14 +46,12 @@ export async function canAccess(
   if (SHALOM_BYPASS.has(email.trim().toLowerCase())) return true;
 
   const [conversation] = await database
-    .select({ id: conversationsTable.id })
-    .from(conversationsTable)
-    .where(
-      or(
-        eq(conversationsTable.ownerUserId, userId),
-        eq(conversationsTable.partnerUserId, userId),
-      ),
-    )
+    .select({ conversationId: participantsTable.conversationId })
+    .from(participantsTable)
+    .where(and(
+      eq(participantsTable.userId, userId),
+      eq(participantsTable.status, "active"),
+    ))
     .limit(1);
 
   return Boolean(conversation);

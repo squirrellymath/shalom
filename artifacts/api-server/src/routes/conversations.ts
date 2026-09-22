@@ -1,5 +1,5 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db, conversationsTable, messagesTable, invitesTable } from "@workspace/db";
 import crypto from "node:crypto";
 import { z } from "zod";
@@ -7,6 +7,11 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { insertMessage, verifyChain } from "../lib/message-chain";
 import { decryptText } from "../lib/crypto";
 import { canAccess, isGuestUser } from "../lib/access";
+import {
+  createConversationWithParticipants,
+  getActiveConversationIds,
+  hasActiveParticipant,
+} from "../lib/participants";
 
 const router: IRouter = Router();
 
@@ -49,10 +54,16 @@ router.get("/conversations", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
+  const conversationIds = await getActiveConversationIds(userId);
+  if (conversationIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
   const rows = await db
     .select()
     .from(conversationsTable)
-    .where(or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId)))
+    .where(inArray(conversationsTable.id, conversationIds))
     .orderBy(conversationsTable.updatedAt);
 
   res.json(rows.reverse());
@@ -78,55 +89,40 @@ router.post("/conversations", async (req, res): Promise<void> => {
 
   const result = await db.transaction(async (tx) => {
     if (clientRequestId) {
-      const [existing] = await tx
+      const candidates = await tx
         .select()
         .from(conversationsTable)
-        .where(
-          and(
-            eq(conversationsTable.ownerUserId, userId),
-            eq(conversationsTable.clientRequestId, clientRequestId),
-          ),
-        );
-      if (existing) {
-        let existingConversation = existing;
-        if (!existingConversation.id) {
-          const raw = await tx.execute(sql`
-            select id::text as id
-            from conversations
-            where owner_user_id = ${userId}
-              and client_request_id = ${clientRequestId}
-            limit 1
-          `);
-          const rawId = (raw.rows[0] as { id?: string } | undefined)?.id;
-          if (rawId) existingConversation = { ...existingConversation, id: rawId };
+        .where(eq(conversationsTable.clientRequestId, clientRequestId));
+      let existing = undefined;
+      for (const candidate of candidates) {
+        if (await hasActiveParticipant(candidate.id, userId, tx)) {
+          existing = candidate;
+          break;
         }
+      }
+      if (existing) {
         const messages = await tx
           .select()
           .from(messagesTable)
-          .where(eq(messagesTable.conversationId, existingConversation.id))
+          .where(eq(messagesTable.conversationId, existing.id))
           .orderBy(messagesTable.seq);
-        return { convo: existingConversation, messages, existing: true };
+        return { convo: existing, messages, existing: true };
       }
     }
 
-    const conversationId = crypto.randomUUID();
-    const [convo] = await tx
-      .insert(conversationsTable)
-      .values({
-        id: conversationId,
-        ownerUserId: userId,
+    const convo = await createConversationWithParticipants(tx, {
         partnerName,
         partnerEmail,
         topic,
         mode,
         clientRequestId,
-      })
-      .returning();
+        id: crypto.randomUUID(),
+      }, userId);
 
     const introText = `I'm Bridget. I'll stay with you and ${partnerName} here. Everything said is timestamped and kept — a record that belongs to both of you.`;
-    const introMsg = await insertMessage(conversationId, "bridget", introText, tx);
+    const introMsg = await insertMessage(convo.id!, "bridget", introText, tx);
     return {
-      convo: { ...convo, id: convo.id ?? conversationId },
+      convo: { ...convo, id: convo.id! },
       messages: [introMsg],
       existing: false,
     };
@@ -156,13 +152,10 @@ router.patch("/conversations/:id", validateUuidParam, async (req, res): Promise<
   const [convo] = await db
     .update(conversationsTable)
     .set({ topic })
-    .where(and(
-      eq(conversationsTable.id, id),
-      or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId)),
-    ))
+    .where(eq(conversationsTable.id, id))
     .returning();
 
-  if (!convo) {
+  if (!convo || !(await hasActiveParticipant(id, userId))) {
     res.status(404).json({ error: "Not found" });
     return;
   }
@@ -176,10 +169,15 @@ router.get("/conversations/:id/messages", validateUuidParam, async (req, res): P
 
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+  if (!(await hasActiveParticipant(id, userId))) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
+    .where(eq(conversationsTable.id, id));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -201,10 +199,15 @@ router.get("/conversations/:id/messages/verify", validateUuidParam, async (req, 
 
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+  if (!(await hasActiveParticipant(id, userId))) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
+    .where(eq(conversationsTable.id, id));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -221,10 +224,15 @@ router.post("/conversations/:id/messages", validateUuidParam, async (req, res): 
 
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+  if (!(await hasActiveParticipant(id, userId))) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), or(eq(conversationsTable.ownerUserId, userId), eq(conversationsTable.partnerUserId, userId))));
+    .where(eq(conversationsTable.id, id));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -303,18 +311,18 @@ router.post("/conversations/:id/invite", validateUuidParam, async (req, res): Pr
 
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-  const [convo] = await db
-    .select()
-    .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.ownerUserId, userId)));
-
-  if (!convo) {
+  if (!(await hasActiveParticipant(id, userId))) {
     res.status(404).json({ error: "Conversation not found" });
     return;
   }
 
-  if (convo.partnerUserId) {
-    res.status(409).json({ error: "already_joined" });
+  const [convo] = await db
+    .select()
+    .from(conversationsTable)
+    .where(eq(conversationsTable.id, id));
+
+  if (!convo) {
+    res.status(404).json({ error: "Conversation not found" });
     return;
   }
 

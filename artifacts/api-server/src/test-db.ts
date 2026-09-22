@@ -61,6 +61,18 @@ await pool.query(`
     created_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE(conversation_id, seq)
   );
+  CREATE TABLE participants (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id text NOT NULL,
+    role text NOT NULL DEFAULT 'principal',
+    status text NOT NULL DEFAULT 'active',
+    joined_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE(conversation_id, user_id),
+    CHECK (role IN ('principal', 'neutral')),
+    CHECK (status IN ('active', 'removed'))
+  );
+  CREATE INDEX participants_user_id_idx ON participants(user_id);
   CREATE TABLE invites (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     token text NOT NULL UNIQUE,

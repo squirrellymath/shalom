@@ -34,7 +34,15 @@ process.env.SESSION_SECRET = "test-session-secret";
 process.env.NODE_ENV = "test";
 
 const { default: app } = await import("./app");
-const { db, pool, conversationsTable, invitesTable, messagesTable, usedSsoTokensTable } =
+const {
+  db,
+  pool,
+  conversationsTable,
+  invitesTable,
+  messagesTable,
+  participantsTable,
+  usedSsoTokensTable,
+} =
   await import("./test-db");
 
 const validSsoResponse = {
@@ -199,8 +207,19 @@ describe("SSO callback", () => {
       .select()
       .from(conversationsTable)
       .where(eq(conversationsTable.id, convo.body.id));
+    const joinedParticipants = await db
+      .select()
+      .from(participantsTable)
+      .where(eq(participantsTable.conversationId, convo.body.id));
     expect(acceptedInvite.status).toBe("accepted");
     expect(joinedConversation.partnerUserId).toBe("real-2");
+    expect(joinedParticipants).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        userId: "real-2",
+        role: "principal",
+        status: "active",
+      }),
+    ]));
   });
 
   it("rejects role guest even without is_guest", async () => {
@@ -384,6 +403,17 @@ describe("access gate and conversation creation", () => {
     await db.insert(conversationsTable).values({
       ownerUserId: "unlisted-user",
       partnerName: "Existing partner",
+    });
+    const [existingConversation] = await db
+      .select({ id: conversationsTable.id })
+      .from(conversationsTable)
+      .where(eq(conversationsTable.ownerUserId, "unlisted-user"));
+    await db.insert(participantsTable).values({
+      id: crypto.randomUUID(),
+      conversationId: existingConversation.id,
+      userId: "unlisted-user",
+      role: "principal",
+      status: "active",
     });
     await agent.get("/member/status").expect(200).expect((res) => {
       expect(res.body.canAccess).toBe(true);

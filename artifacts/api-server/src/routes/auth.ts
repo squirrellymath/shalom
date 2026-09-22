@@ -1,5 +1,5 @@
 import { Router, type Request, type Response as ExpressResponse } from "express";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import {
   db,
@@ -8,6 +8,11 @@ import {
   usedSsoTokensTable,
 } from "@workspace/db";
 import { getGuestCondition } from "../lib/access";
+import {
+  getPrincipalParticipants,
+  ParticipantLimitError,
+  writeParticipant,
+} from "../lib/participants";
 
 const router = Router();
 
@@ -187,35 +192,27 @@ router.get("/auth/sso/callback", async (req, res) => {
             .select()
             .from(conversationsTable)
             .where(eq(conversationsTable.id, invite.conversationId));
+          if (!convo) {
+            return "/?invite_error=invalid";
+          }
 
-          if (convo?.ownerUserId === user.user_id) {
+          const principals = await getPrincipalParticipants(invite.conversationId, tx);
+          if (principals[0]?.userId === user.user_id) {
             return "/?invite_error=own_invite";
           }
 
-          if (convo?.partnerUserId && convo.partnerUserId !== user.user_id) {
-            await tx
-              .update(invitesTable)
-              .set({ status: "expired" })
-              .where(eq(invitesTable.id, invite.id));
-            return "/?invite_error=already_joined";
-          }
-
-          if (convo?.partnerUserId === user.user_id) {
+          if (principals.some((participant) => participant.userId === user.user_id)) {
             return `/?joined=${invite.conversationId}`;
           }
 
-          const [updated] = await tx
-            .update(conversationsTable)
-            .set({ partnerUserId: user.user_id })
-            .where(
-              and(
-                eq(conversationsTable.id, invite.conversationId),
-                isNull(conversationsTable.partnerUserId),
-              ),
-            )
-            .returning();
-
-          if (!updated) {
+          try {
+            await writeParticipant(tx, {
+              conversationId: invite.conversationId,
+              userId: user.user_id,
+              role: "principal",
+            });
+          } catch (err) {
+            if (!(err instanceof ParticipantLimitError)) throw err;
             await tx
               .update(invitesTable)
               .set({ status: "expired" })

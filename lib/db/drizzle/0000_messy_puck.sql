@@ -102,4 +102,37 @@ CREATE INDEX IF NOT EXISTS "invites_conversation_id_idx"
 CREATE INDEX IF NOT EXISTS "used_sso_tokens_used_at_idx"
   ON "used_sso_tokens" ("used_at");
 
+CREATE TABLE IF NOT EXISTS "participants" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "conversation_id" uuid NOT NULL REFERENCES "conversations"("id") ON DELETE cascade,
+  "user_id" text NOT NULL,
+  "role" text DEFAULT 'principal' NOT NULL,
+  "status" text DEFAULT 'active' NOT NULL,
+  "joined_at" timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT "participants_role_check" CHECK ("role" IN ('principal', 'neutral')),
+  CONSTRAINT "participants_status_check" CHECK ("status" IN ('active', 'removed'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "participants_conversation_user_uniq"
+  ON "participants" ("conversation_id", "user_id");
+CREATE INDEX IF NOT EXISTS "participants_user_id_idx"
+  ON "participants" ("user_id");
+
+INSERT INTO "participants" ("conversation_id", "user_id", "role", "status", "joined_at")
+SELECT "id", "owner_user_id", 'principal', 'active', "created_at"
+FROM "conversations"
+WHERE "owner_user_id" IS NOT NULL
+ON CONFLICT ("conversation_id", "user_id") DO NOTHING;
+
+INSERT INTO "participants" ("conversation_id", "user_id", "role", "status", "joined_at")
+SELECT "id", "partner_user_id", 'principal', 'active', "created_at" + interval '1 millisecond'
+FROM "conversations"
+WHERE "partner_user_id" IS NOT NULL
+ON CONFLICT ("conversation_id", "user_id") DO NOTHING;
+
+INSERT INTO "participants" ("conversation_id", "user_id", "role", "status", "joined_at")
+SELECT "id", 'bridget', 'neutral', 'active', "created_at"
+FROM "conversations"
+ON CONFLICT ("conversation_id", "user_id") DO NOTHING;
+
 COMMIT;
