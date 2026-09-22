@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getGuestCondition } from "./lib/access";
+import { decryptText } from "./lib/crypto";
 
 const anthropicCreate = vi.hoisted(() => vi.fn());
 const testSessions = vi.hoisted(() => new Map<string, any>());
@@ -220,6 +221,19 @@ describe("SSO callback", () => {
         status: "active",
       }),
     ]));
+    const joinedMessages = await db
+      .select()
+      .from(messagesTable)
+      .where(eq(messagesTable.conversationId, convo.body.id));
+    const joinEvent = joinedMessages.find((message) => message.sender === "system");
+    expect(joinEvent).toBeDefined();
+    expect(decryptText(joinEvent!.text)).toBe(
+      '{"type":"partner_consented","participantId":"real-2"}',
+    );
+    await guest
+      .get(`/conversations/${convo.body.id}/messages/verify`)
+      .expect(200)
+      .expect({ valid: true });
   });
 
   it("rejects role guest even without is_guest", async () => {

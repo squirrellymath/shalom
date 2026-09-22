@@ -8,6 +8,8 @@ import {
   usedSsoTokensTable,
 } from "@workspace/db";
 import { getGuestCondition } from "../lib/access";
+import { insertMessage } from "../lib/message-chain";
+import { partnerConsentedEventBody } from "../lib/join-events";
 import {
   getPrincipalParticipants,
   ParticipantLimitError,
@@ -211,6 +213,12 @@ router.get("/auth/sso/callback", async (req, res) => {
               userId: user.user_id,
               role: "principal",
             });
+            await insertMessage(
+              invite.conversationId,
+              "system",
+              partnerConsentedEventBody(user.user_id),
+              tx,
+            );
           } catch (err) {
             if (!(err instanceof ParticipantLimitError)) throw err;
             await tx
